@@ -645,7 +645,8 @@
               Số tiền (VNĐ) <span class="text-rose-500">*</span>
             </label>
             <div class="relative">
-              <input type="text" id="amountInput" required placeholder="50.000" inputmode="numeric"
+              <input type="text" id="amountInput" required placeholder="0" inputmode="numeric" pattern="[0-9.]*"
+                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                 class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold text-xl pl-4 pr-12 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
               <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₫</span>
             </div>

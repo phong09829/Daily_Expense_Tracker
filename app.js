@@ -1434,16 +1434,8 @@ function setupEventListeners() {
     }
   }
 
-  // Live Currency Formatting
-  DOM.amountInput.addEventListener("input", (e) => {
-    const rawVal = parseCurrencyNumber(e.target.value);
-    if (!isNaN(rawVal) && rawVal > 0) {
-      e.target.value = formatCurrencyInput(rawVal);
-      updateAmountWords(rawVal);
-    } else {
-      DOM.amountWords.textContent = "";
-    }
-  });
+  // Live Currency Formatting (Chống nhảy số, giữ con trỏ & hỗ trợ xóa lùi mượt mà)
+  setupAmountInputHandler();
 
   // Modal Xóa
   if (DOM.cancelDeleteBtn) DOM.cancelDeleteBtn.addEventListener("click", closeDeleteModal);
@@ -1592,6 +1584,103 @@ function getCategoryMeta(type, categoryName) {
     icon: type === "expense" ? "fa-credit-card" : "fa-sack-dollar",
     color: type === "expense" ? "#ef4444" : "#10b981"
   };
+}
+
+
+/**
+ * Xử lý nhập số tiền an toàn:
+ * - Chống nhảy số & nhân đôi số do bộ nhớ đệm bàn phím ảo (Gboard, Samsung, iOS)
+ * - Tự động định dạng hàng nghìn có dấu chấm: 50.000
+ * - Giữ nguyên vị trí con trỏ chuột khi đang gõ
+ * - Xóa lùi Backspace mượt mà qua các dấu chấm phân cách
+ */
+function setupAmountInputHandler() {
+  if (!DOM.amountInput) return;
+
+  // 1. Xử lý Backspace qua dấu chấm phân cách
+  DOM.amountInput.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace") {
+      const input = DOM.amountInput;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+
+      // Nếu con trỏ chuột đứng ngay sau dấu chấm '.' và không bôi đen nhiều ký tự
+      if (start === end && start > 0 && input.value[start - 1] === ".") {
+        e.preventDefault();
+        const currentVal = input.value;
+        // Xóa chữ số đứng trước dấu chấm thay vì xóa dấu chấm rồi bị format ngược lại
+        const updatedVal = currentVal.slice(0, start - 2) + currentVal.slice(start - 1);
+        const cleanDigits = updatedVal.replace(/\D/g, "");
+
+        if (!cleanDigits || cleanDigits === "0") {
+          input.value = "";
+          if (DOM.amountWords) DOM.amountWords.textContent = "";
+        } else {
+          const numVal = parseInt(cleanDigits, 10);
+          input.value = formatCurrencyInput(numVal);
+          const newPos = Math.max(0, start - 2);
+          input.setSelectionRange(newPos, newPos);
+          updateAmountWords(numVal);
+        }
+      }
+    }
+  });
+
+  // 2. Format trực tiếp theo thời gian thực (Giữ con trỏ chuột & ngăn lặp buffer)
+  DOM.amountInput.addEventListener("input", (e) => {
+    const input = e.target;
+    const rawVal = input.value;
+    const prevCursor = input.selectionEnd || rawVal.length;
+
+    // Đếm số lượng chữ số nằm trước vị trí con trỏ chuột
+    const digitsBeforeCursor = rawVal.slice(0, prevCursor).replace(/\D/g, "").length;
+
+    // Lọc sạch toàn bộ ký tự không phải chữ số
+    const cleanDigits = rawVal.replace(/\D/g, "");
+
+    if (!cleanDigits) {
+      input.value = "";
+      if (DOM.amountWords) DOM.amountWords.textContent = "";
+      return;
+    }
+
+    // Giới hạn tối đa 12 chữ số (dưới 1.000 tỷ đồng)
+    const safeDigits = cleanDigits.slice(0, 12);
+    const numVal = parseInt(safeDigits, 10) || 0;
+
+    if (numVal === 0) {
+      input.value = "";
+      if (DOM.amountWords) DOM.amountWords.textContent = "";
+      return;
+    }
+
+    // Format tiền theo chuẩn Việt Nam (50.000)
+    const formatted = formatCurrencyInput(numVal);
+
+    // Chỉ cập nhật DOM nếu giá trị chuỗi thật sự thay đổi (tránh reset buffer bàn phím ảo)
+    if (input.value !== formatted) {
+      input.value = formatted;
+
+      // Tính toán lại vị trí con trỏ chuột chuẩn xác
+      let newCursor = 0;
+      let digitsCounted = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (/\d/.test(formatted[i])) {
+          digitsCounted++;
+        }
+        if (digitsCounted === digitsBeforeCursor) {
+          newCursor = i + 1;
+          break;
+        }
+      }
+      if (digitsCounted < digitsBeforeCursor) {
+        newCursor = formatted.length;
+      }
+      input.setSelectionRange(newCursor, newCursor);
+    }
+
+    updateAmountWords(numVal);
+  });
 }
 
 function updateAmountWords(amount) {
