@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <meta name="application-name" content="ExpenseFlow">
-  <meta name="description" content="Web App quản lý chi tiêu cá nhân hằng ngày, đồng bộ đám mây tức thì">
+  <meta name="description" content="Web App quản lý chi tiêu cá nhân hằng ngày, đăng nhập OTP Gmail tức thì">
 
   <!-- Apple iOS PWA Meta Tags & Icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -90,19 +90,6 @@
     </div>
   </div>
 
-  <!-- Cảnh báo cấu hình Firebase chưa điền -->
-  <div id="firebaseConfigAlert" class="hidden bg-amber-500 text-white px-4 py-3 shadow-md relative z-50">
-    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm font-medium">
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
-        <span><strong>Lưu ý:</strong> Bạn chưa cập nhật <code>firebaseConfig</code> trong file <code>app.js</code>.</span>
-      </div>
-      <button id="openConfigGuideBtn" class="bg-white text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-50 transition shadow-sm whitespace-nowrap">
-        Xem hướng dẫn kết nối
-      </button>
-    </div>
-  </div>
-
   <!-- ==================== HEADER NAVIGATION ==================== -->
   <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -121,51 +108,31 @@
 
       <!-- Action & Auth Area -->
       <div id="authContainer" class="flex items-center gap-2.5">
-        
-        <!-- Mode Badge (Offline / Cloud) -->
-        <div id="modeBadge" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition">
-          <span class="w-2 h-2 rounded-full"></span>
-          <span id="modeBadgeText">Chế độ Ngoại tuyến</span>
-        </div>
 
-        <!-- Nút Cài đặt Firebase (trên Header) -->
-        <button id="openCustomConfigBtn" title="Cài đặt kết nối Firebase" class="p-2 w-8 h-8 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 transition-all flex items-center justify-center text-xs">
-          <i class="fa-solid fa-gear"></i>
-        </button>
-
-        <!-- Nút Dùng Thử Trực Tiếp (khi chưa đăng nhập) -->
-        <button id="quickLocalBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
-          <i class="fa-solid fa-bolt text-amber-500"></i>
-          <span>Dùng ngay</span>
-        </button>
-
-        <!-- Nút Cài đặt App trên Header (hiện khi có thể cài) -->
+        <!-- Nút Cài đặt App trên Header -->
         <button id="headerInstallBtn" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/60 font-bold text-xs transition">
           <i class="fa-solid fa-arrow-down-to-line"></i>
           <span class="hidden sm:inline">Tải App</span>
         </button>
 
-        <!-- Nút Đăng nhập Gmail -->
-        <button id="loginBtn" class="hidden items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold text-xs sm:text-sm shadow-sm hover:shadow transition-all group">
-          <svg class="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-          </svg>
-          <span class="hidden sm:inline">Đăng nhập</span>
+        <!-- Nút Đăng nhập Gmail OTP -->
+        <button id="openOtpModalBtn" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/20 active:scale-95 transition-all group">
+          <i class="fa-solid fa-envelope-circle-check"></i>
+          <span>Đăng nhập Gmail OTP</span>
         </button>
 
         <!-- User Profile Pill (Đã đăng nhập) -->
         <div id="userProfile" class="hidden items-center gap-2">
           <div class="flex items-center gap-2 bg-slate-100/90 p-1 pr-2.5 rounded-full border border-slate-200">
             <img id="userAvatar" src="" alt="Avatar" class="w-7 h-7 rounded-full border border-white shadow-xs object-cover">
-            <span id="userName" class="text-xs font-bold text-slate-800 hidden sm:inline truncate max-w-[120px]">...</span>
+            <div class="flex flex-col text-left">
+              <span id="userName" class="text-xs font-bold text-slate-800 truncate max-w-[120px]">...</span>
+              <span id="userEmailTag" class="text-[9px] text-slate-400 truncate max-w-[120px] font-mono leading-none"></span>
+            </div>
           </div>
-          <button id="logoutBtn" title="Thoát / Đổi tài khoản" class="p-2 w-8 h-8 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all flex items-center justify-center text-xs">
+          <button id="logoutBtn" title="Đăng xuất" class="p-2 w-8 h-8 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all flex items-center justify-center text-xs">
             <i class="fa-solid fa-arrow-right-from-bracket"></i>
           </button>
-        </div>
         </div>
 
       </div>
@@ -180,7 +147,7 @@
         <i class="fa-solid fa-wallet"></i>
       </div>
     </div>
-    <p class="mt-4 text-xs font-semibold text-slate-500 animate-pulse">Đang chuẩn bị ứng dụng của bạn...</p>
+    <p class="mt-4 text-xs font-semibold text-slate-500 animate-pulse">Đang nạp ứng dụng...</p>
   </div>
 
   <!-- ==================== GUEST VIEW (CHƯA ĐĂNG NHẬP) ==================== -->
@@ -188,74 +155,66 @@
     <div class="max-w-2xl w-full text-center space-y-6 sm:space-y-8">
       
       <!-- App Icon Showcase -->
-      <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-0.5 shadow-xl shadow-indigo-500/20 transform hover:scale-105 transition">
+      <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-rose-500 via-indigo-600 to-purple-600 p-0.5 shadow-xl shadow-indigo-500/20 transform hover:scale-105 transition">
         <img src="icons/icon-192.png" alt="App Icon" class="w-full h-full rounded-[22px] object-cover">
       </div>
 
       <!-- Hero Title -->
       <div class="space-y-3">
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/60 text-indigo-700 text-xs font-bold">
-          <i class="fa-solid fa-mobile-screen-button text-indigo-500"></i>
-          <span>Ứng dụng Web App (PWA) cài đặt trực tiếp</span>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200/60 text-rose-700 text-xs font-bold">
+          <i class="fa-solid fa-shield-halved text-rose-500"></i>
+          <span>Xác thực an toàn bằng mã OTP Gmail</span>
         </div>
         <h2 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
           Quản lý chi tiêu cá nhân<br class="hidden sm:inline">
-          <span class="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
-            nhanh chóng &amp; bảo mật
+          <span class="bg-gradient-to-r from-rose-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            nhanh gọn &amp; tiện lợi
           </span>
         </h2>
         <p class="text-slate-600 text-sm sm:text-base max-w-lg mx-auto leading-relaxed">
-          Đăng nhập một chạm bằng tài khoản Google (Gmail). Dữ liệu của bạn được cô lập và đồng bộ thời gian thực trên mọi thiết bị.
+          Đăng nhập tức thì bằng địa chỉ Gmail của bạn thông qua mã xác thực OTP 6 số. Mỗi tài khoản Gmail sở hữu không gian ghi chép riêng biệt!
         </p>
       </div>
 
-      <!-- Login & Instant Access Actions -->
+      <!-- Login & Quick Access Actions -->
       <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-        <!-- Nút Trải nghiệm ngay Offline -->
-        <button id="heroLocalBtn" class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 active:scale-95 transition-all">
-          <i class="fa-solid fa-bolt text-amber-300"></i>
-          <span>Dùng thử ngay (Không cần đăng nhập)</span>
+        <!-- Nút Đăng nhập OTP Gmail -->
+        <button id="heroOtpBtn" class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">
+          <i class="fa-solid fa-key"></i>
+          <span>Đăng nhập bằng mã OTP Gmail</span>
         </button>
 
-        <!-- Google Login Action -->
-        <button id="heroLoginBtn" class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 font-bold text-sm shadow-sm active:scale-95 transition-all">
-          <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-          </svg>
-          <span>Đăng nhập Firebase Cloud</span>
+        <!-- Dùng thử với vai trò Khách -->
+        <button id="guestTrialBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm shadow-sm active:scale-95 transition-all">
+          <i class="fa-solid fa-user-astronaut text-slate-400"></i>
+          <span>Dùng thử chế độ Khách</span>
         </button>
       </div>
-      <p class="text-xs text-slate-500">
-        ⚡ Chế độ Ngoại tuyến lưu trên máy của bạn &nbsp;•&nbsp; ☁️ Đăng nhập Google để đồng bộ đa thiết bị
-      </p>
 
       <!-- App Highlights -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-left">
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
-            <i class="fa-solid fa-mobile-retro"></i>
+          <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+            <i class="fa-solid fa-envelope-circle-check text-lg"></i>
           </div>
-          <h4 class="font-bold text-slate-900 text-sm">Giao diện Native App</h4>
-          <p class="text-xs text-slate-500 mt-1">Cài ra màn hình chính, mở độc lập không thanh URL trình duyệt.</p>
+          <h4 class="font-bold text-slate-900 text-sm">Xác thực OTP Gmail</h4>
+          <p class="text-xs text-slate-500 mt-1">Đăng nhập nhanh với mã OTP 6 số, không cần mật khẩu phức tạp.</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+            <i class="fa-solid fa-user-lock text-lg"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 text-sm">Cô lập dữ liệu</h4>
+          <p class="text-xs text-slate-500 mt-1">Mỗi Gmail lưu trữ sổ thu chi riêng biệt, an toàn tuyệt đối.</p>
         </div>
 
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
-            <i class="fa-solid fa-bolt-lightning"></i>
+            <i class="fa-solid fa-mobile-screen-button text-lg"></i>
           </div>
-          <h4 class="font-bold text-slate-900 text-sm">Đồng bộ tức thì</h4>
-          <p class="text-xs text-slate-500 mt-1">Sử dụng Firestore onSnapshot, ghi chép trên đt lập tức hiện trên máy tính.</p>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-3">
-            <i class="fa-solid fa-shield-check"></i>
-          </div>
-          <h4 class="font-bold text-slate-900 text-sm">An toàn tuyệt đối</h4>
-          <p class="text-xs text-slate-500 mt-1">Chỉ chủ tài khoản Gmail mới có quyền đọc và ghi dữ liệu của mình.</p>
+          <h4 class="font-bold text-slate-900 text-sm">Chuẩn App PWA</h4>
+          <p class="text-xs text-slate-500 mt-1">Cài trực tiếp ra màn hình chính điện thoại, dùng toàn màn hình mượt mà.</p>
         </div>
       </div>
 
@@ -410,12 +369,7 @@
 
         <!-- Danh sách giao dịch cuộn -->
         <div class="flex-1 overflow-y-auto max-h-[500px] divide-y divide-slate-100 pr-1 -mr-1" id="transactionsList">
-          <!-- Skeleton Loading -->
-          <div class="space-y-3 py-3">
-            <div class="h-14 bg-slate-100 animate-pulse rounded-xl"></div>
-            <div class="h-14 bg-slate-100 animate-pulse rounded-xl"></div>
-            <div class="h-14 bg-slate-100 animate-pulse rounded-xl"></div>
-          </div>
+          <!-- JS điền giao dịch -->
         </div>
 
         <!-- Trạng thái trống -->
@@ -433,95 +387,208 @@
 
   </main>
 
-  <!-- ==================== MOBILE BOTTOM NAVIGATION BAR (NATIVE APP FEEL) ==================== -->
-  <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 shadow-lg safe-bottom">
-    <div class="flex items-center justify-around max-w-md mx-auto">
+  <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 safe-bottom">
+    <div class="flex items-center justify-around h-16 px-2 relative">
       
-      <!-- Tab Tổng quan -->
+      <!-- Tab 1: Tổng quan -->
       <button id="navOverviewBtn" class="flex flex-col items-center gap-1 text-indigo-600 font-bold text-[10px] w-14">
-        <i class="fa-solid fa-house text-base"></i>
+        <i class="fa-solid fa-house text-lg"></i>
         <span>Tổng quan</span>
       </button>
 
-      <!-- Tab Thống kê -->
+      <!-- Tab 2: Biểu đồ -->
       <button id="navChartBtn" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 font-semibold text-[10px] w-14">
-        <i class="fa-solid fa-chart-pie text-base"></i>
-        <span>Thống kê</span>
+        <i class="fa-solid fa-chart-pie text-lg"></i>
+        <span>Biểu đồ</span>
       </button>
 
-      <!-- Nút tròn thêm ở giữa (FAB) -->
-      <div class="-mt-5">
-        <button id="mobileAddFabBtn" class="w-13 h-13 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/40 active:scale-90 transition transform">
-          <i class="fa-solid fa-plus text-lg"></i>
+      <!-- Floating Action Button (FAB): Thêm Giao Dịch -->
+      <div class="relative -top-5">
+        <button id="mobileAddFabBtn" class="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 text-xl active:scale-90 transition-transform">
+          <i class="fa-solid fa-plus"></i>
         </button>
       </div>
 
-      <!-- Tab Lịch sử -->
+      <!-- Tab 3: Lịch sử -->
       <button id="navHistoryBtn" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 font-semibold text-[10px] w-14">
-        <i class="fa-solid fa-receipt text-base"></i>
+        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
         <span>Lịch sử</span>
       </button>
 
-      <!-- Tab Cài đặt PWA / Profile -->
+      <!-- Tab 4: Cài App -->
       <button id="navInstallBtn" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 font-semibold text-[10px] w-14">
-        <i class="fa-solid fa-arrow-down-to-bracket text-base"></i>
+        <i class="fa-solid fa-circle-down text-lg"></i>
         <span>Tải App</span>
       </button>
 
     </div>
   </nav>
 
-  <!-- ==================== MODALS ==================== -->
-
-  <!-- Modal Thêm / Sửa Giao Dịch -->
-  <div id="transactionModal" class="fixed inset-0 z-50 hidden">
-    <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"></div>
-    
-    <div class="fixed inset-0 z-10 overflow-y-auto flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div class="relative bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+  <!-- ==================== MODAL ĐĂNG NHẬP OTP GMAIL ==================== -->
+  <div id="gmailOtpModal" class="fixed inset-0 z-50 hidden">
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" id="otpModalBackdrop"></div>
+    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
+      <div class="relative bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100">
         
-        <!-- Header Modal -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <!-- Nút Đóng Modal -->
+        <button id="closeOtpModalBtn" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-sm transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <!-- BƯỚC 1: NHẬP ĐỊA CHỈ GMAIL -->
+        <div id="otpStepEmail" class="space-y-5">
+          <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl mx-auto shadow-xs">
+            <i class="fa-solid fa-envelope-open-text"></i>
+          </div>
+
+          <div class="text-center space-y-1">
+            <h3 class="text-xl font-extrabold text-slate-900">Đăng nhập tài khoản</h3>
+            <p class="text-xs text-slate-500">Nhập địa chỉ Gmail để nhận mã xác thực OTP 6 số</p>
+          </div>
+
+          <form id="sendOtpForm" class="space-y-4">
+            <div>
+              <label for="gmailInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Địa chỉ Gmail <span class="text-rose-500">*</span>
+              </label>
+              <div class="relative">
+                <i class="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="email" id="gmailInput" required placeholder="vidu@gmail.com"
+                  class="w-full bg-slate-50 border border-slate-200 text-slate-900 pl-11 pr-4 py-3 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+              </div>
+            </div>
+
+            <button type="submit" id="sendOtpBtn" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 active:scale-95 transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Gửi mã xác thực OTP</span>
+            </button>
+          </form>
+
+          <div class="text-center pt-2 border-t border-slate-100">
+            <button id="quickGuestFromModalBtn" class="text-xs font-bold text-slate-500 hover:text-indigo-600 transition">
+              Dùng thử nhanh không cần Gmail &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- BƯỚC 2: NHẬP MÃ OTP 6 SỐ -->
+        <div id="otpStepVerify" class="hidden space-y-5">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mx-auto shadow-xs">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+
+          <div class="text-center space-y-1">
+            <h3 class="text-xl font-extrabold text-slate-900">Xác thực mã OTP</h3>
+            <p class="text-xs text-slate-500">Mã 6 chữ số đã được gửi tới:</p>
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full font-mono text-xs font-bold text-slate-800">
+              <span id="targetEmailDisplay">...</span>
+              <button id="changeEmailBtn" title="Đổi email" class="text-indigo-600 hover:underline text-[11px] font-sans">
+                (Đổi)
+              </button>
+            </div>
+          </div>
+
+          <!-- 6 Ô Input Mã OTP -->
+          <div class="flex items-center justify-center gap-2 sm:gap-2.5 py-2">
+            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="0">
+            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="1">
+            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="2">
+            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="3">
+            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="4">
+            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="5">
+          </div>
+
+          <!-- Nút Xác nhận OTP -->
+          <button id="verifyOtpBtn" class="w-full py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 active:scale-95 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Xác nhận &amp; Đăng nhập</span>
+          </button>
+
+          <!-- Đếm ngược & Gửi lại mã -->
+          <div class="text-center text-xs text-slate-500">
+            <span id="countdownText">Gửi lại mã sau: <strong id="countdownSec" class="font-mono text-indigo-600">60</strong>s</span>
+            <button id="resendOtpBtn" class="hidden text-indigo-600 hover:underline font-bold">
+              Gửi lại mã OTP mới
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BANNER MÔ PHỎNG HỘP THƯ GMAIL (OTP NOTIFICATION) ==================== -->
+  <div id="gmailSimulatorBanner" class="hidden fixed top-20 right-4 left-4 sm:left-auto sm:w-96 z-50 bg-white border border-slate-200 p-4 rounded-2xl shadow-2xl animate-fade-in">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm font-bold shrink-0">
+          <i class="fa-solid fa-envelope"></i>
+        </div>
+        <div>
+          <span class="text-[11px] font-bold text-slate-800">Gmail Inbox (Mã OTP)</span>
+          <p class="text-[10px] text-slate-400">ExpenseFlow Auth Service</p>
+        </div>
+      </div>
+      <button id="closeGmailSimBtn" class="text-slate-400 hover:text-slate-600 text-xs p-1">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+      <div>
+        <span class="text-[11px] text-slate-500">Mã xác nhận:</span>
+        <span id="simulatedOtpCode" class="ml-1.5 font-mono font-extrabold text-base text-rose-600 tracking-wider">------</span>
+      </div>
+      <button id="autoFillOtpBtn" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">
+        Tự động điền
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL THÊM / SỬA GIAO DỊCH ==================== -->
+  <div id="transactionModal" class="fixed inset-0 z-50 hidden">
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" id="modalBackdrop"></div>
+    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
+      <div class="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+        
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
           <div class="flex items-center gap-2.5">
             <div id="modalIconContainer" class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <i id="modalIcon" class="fa-solid fa-plus"></i>
             </div>
             <div>
-              <h3 id="modalTitle" class="text-base font-bold text-slate-900">Thêm giao dịch</h3>
-              <p class="text-xs text-slate-500">Ghi chép thu chi cá nhân</p>
+              <h3 id="modalTitle" class="text-base font-bold text-slate-900">Thêm giao dịch mới</h3>
+              <p class="text-[11px] text-slate-400">Ghi chép thu chi chỉ trong 2 giây</p>
             </div>
           </div>
           <button id="closeModalBtn" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition">
-            <i class="fa-solid fa-xmark text-lg"></i>
+            <i class="fa-solid fa-xmark text-base"></i>
           </button>
         </div>
 
-        <!-- Form Body -->
+        <!-- Form nhập -->
         <form id="transactionForm" class="mt-4 space-y-4">
-          <input type="hidden" id="editTransactionId" value="">
+          <input type="hidden" id="editTransactionId">
 
-          <!-- Chọn Loại Thu / Chi -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Loại giao dịch</label>
-            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
-              <label class="cursor-pointer">
-                <input type="radio" name="type" value="expense" checked class="peer sr-only">
-                <div class="text-center py-2.5 rounded-xl font-bold text-xs text-slate-600 transition peer-checked:bg-rose-500 peer-checked:text-white peer-checked:shadow-sm flex items-center justify-center gap-1.5">
-                  <i class="fa-solid fa-arrow-down"></i>
-                  <span>Khoản Chi</span>
-                </div>
-              </label>
-              <label class="cursor-pointer">
-                <input type="radio" name="type" value="income" class="peer sr-only">
-                <div class="text-center py-2.5 rounded-xl font-bold text-xs text-slate-600 transition peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:shadow-sm flex items-center justify-center gap-1.5">
-                  <i class="fa-solid fa-arrow-up"></i>
-                  <span>Khoản Thu</span>
-                </div>
-              </label>
-            </div>
+          <!-- Loại giao dịch (Chi tiêu / Thu nhập) -->
+          <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl">
+            <label class="cursor-pointer">
+              <input type="radio" name="type" value="expense" checked class="peer sr-only">
+              <div class="py-2.5 text-center text-xs font-bold rounded-xl text-slate-600 peer-checked:bg-white peer-checked:text-rose-600 peer-checked:shadow-xs transition">
+                <i class="fa-solid fa-arrow-trend-down mr-1"></i> Chi tiêu
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="type" value="income" class="peer sr-only">
+              <div class="py-2.5 text-center text-xs font-bold rounded-xl text-slate-600 peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:shadow-xs transition">
+                <i class="fa-solid fa-arrow-trend-up mr-1"></i> Thu nhập
+              </div>
+            </label>
           </div>
 
-          <!-- Số tiền VNĐ -->
+          <!-- Số tiền -->
           <div>
             <label for="amountInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
               Số tiền (VNĐ) <span class="text-rose-500">*</span>
@@ -589,7 +656,7 @@
           <i class="fa-solid fa-trash-can"></i>
         </div>
         <h4 class="text-base font-bold text-slate-900">Xác nhận xóa giao dịch?</h4>
-        <p class="text-xs text-slate-500 mt-2">Dữ liệu sẽ bị xóa vĩnh viễn khỏi Cloud Firestore của bạn.</p>
+        <p class="text-xs text-slate-500 mt-2">Dữ liệu sẽ bị xóa vĩnh viễn khỏi sổ thu chi của bạn.</p>
         
         <div class="mt-6 flex items-center justify-center gap-3">
           <button id="cancelDeleteBtn" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition">
@@ -631,115 +698,10 @@
     </div>
   </div>
 
-  <!-- Modal Hướng dẫn Cấu hình Firebase Nhanh -->
-  <div id="configGuideModal" class="fixed inset-0 z-50 hidden">
-    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
-      <div class="relative bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div class="flex items-center gap-2 text-indigo-600 font-bold">
-            <i class="fa-brands fa-google text-lg"></i>
-            <span>Cấu hình Firebase cho dự án của bạn</span>
-          </div>
-          <button id="closeConfigGuideBtn" class="text-slate-400 hover:text-slate-600 p-1">
-            <i class="fa-solid fa-xmark text-lg"></i>
-          </button>
-        </div>
-        <div class="mt-4 space-y-3 text-xs text-slate-600 leading-relaxed">
-          <p>Để lưu trữ và đồng bộ hóa qua Gmail của bạn, chỉ cần 3 bước đơn giản:</p>
-          <ol class="list-decimal pl-5 space-y-2">
-            <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" class="text-indigo-600 underline font-semibold">Firebase Console</a> và bấm <strong>Add project</strong>.</li>
-            <li>Vào mục <strong>Authentication</strong> > Tab <strong>Sign-in method</strong> > Chọn và bật <strong>Google</strong>.</li>
-            <li>Vào <strong>Firestore Database</strong> > Tạo database và cập nhật Security Rules:
-              <pre class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg mt-1 font-mono text-[11px] overflow-x-auto">rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/expenses/{expenseId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}</pre>
-            </li>
-            <li>Tại Project Overview > Bấm vào biểu tượng <code>&lt;/&gt;</code> để lấy <strong>firebaseConfig</strong> rồi dán vào file <code>app.js</code>.</li>
-          </ol>
-          <p class="font-semibold text-slate-800">Chi tiết tường tận từ A-Z hãy xem tại file <code class="bg-slate-100 px-1 py-0.5 rounded">README.md</code>!</p>
-        </div>
-        <div class="mt-5 text-right">
-          <button id="closeConfigGuideOkBtn" class="px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold">Đã hiểu</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Cấu hình Firebase Trực Tiếp (Người dùng có thể dán config riêng) -->
-  <div id="customConfigModal" class="fixed inset-0 z-50 hidden">
-    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
-      <div class="relative bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div class="flex items-center gap-2 text-indigo-600 font-bold">
-            <i class="fa-solid fa-sliders text-base"></i>
-            <span>Cài đặt & Kết nối Firebase</span>
-          </div>
-          <button id="closeCustomConfigBtn" class="text-slate-400 hover:text-slate-600 p-1">
-            <i class="fa-solid fa-xmark text-lg"></i>
-          </button>
-        </div>
-        
-        <form id="customConfigForm" class="mt-4 space-y-3.5 text-xs">
-          <p class="text-slate-600 leading-relaxed">
-            Dán thông tin <code>firebaseConfig</code> từ Firebase Console của bạn để kích hoạt đồng bộ đám mây và đăng nhập Google:
-          </p>
-          
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">API Key</label>
-            <input type="text" id="cfgApiKey" placeholder="AIzaSy..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Project ID</label>
-              <input type="text" id="cfgProjectId" placeholder="my-expense-app" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Auth Domain</label>
-              <input type="text" id="cfgAuthDomain" placeholder="my-app.firebaseapp.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">App ID</label>
-              <input type="text" id="cfgAppId" placeholder="1:123456:web:..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Storage Bucket</label>
-              <input type="text" id="cfgStorageBucket" placeholder="my-app.appspot.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-            </div>
-          </div>
-
-          <div class="pt-3 flex items-center justify-between border-t border-slate-100 gap-2">
-            <button type="button" id="resetConfigBtn" class="text-rose-600 hover:text-rose-700 font-bold px-2 py-1">
-              Xóa cấu hình
-            </button>
-            <div class="flex items-center gap-2">
-              <button type="button" id="cancelCustomConfigBtn" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold">
-                Đóng
-              </button>
-              <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20">
-                Lưu & Kết nối
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
   <!-- Toast Notification System -->
   <div id="toastContainer" class="fixed bottom-20 md:bottom-5 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-  <!-- Main Application Logic (ES6 Module) -->
+  <!-- Main Application Logic (Không còn Firebase, Đăng nhập Gmail OTP thuần) -->
   <script type="module" src="app.js"></script>
 </body>
 </html>

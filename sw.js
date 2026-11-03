@@ -3,7 +3,7 @@
  * Cung cấp khả năng hoạt động offline, mở App tức thì và hỗ trợ cài đặt Standalone App.
  */
 
-const CACHE_NAME = "expenseflow-pwa-v1";
+const CACHE_NAME = "expenseflow-pwa-v2";
 
 // Danh sách tài nguyên tĩnh cần cache sẵn để App tải tức thì
 const STATIC_ASSETS = [
@@ -45,27 +45,14 @@ self.addEventListener("activate", (event) => {
 
 // 3. Xử lý Request tài nguyên (Fetch Event)
 self.addEventListener("fetch", (event) => {
-  const requestUrl = new URL(event.request.url);
-
-  // BỎ QUA CACHE: Các request tới Firebase Auth, Cloud Firestore, Google API
-  // Luôn phải gửi trực tiếp qua mạng để đảm bảo tính thời gian thực và bảo mật tuyệt đối
-  if (
-    requestUrl.hostname.includes("firestore.googleapis.com") ||
-    requestUrl.hostname.includes("identitytoolkit.googleapis.com") ||
-    requestUrl.hostname.includes("securetoken.googleapis.com") ||
-    requestUrl.hostname.includes("firebaseio.com") ||
-    requestUrl.hostname.includes("accounts.google.com") ||
-    requestUrl.hostname.includes("apis.google.com")
-  ) {
-    return; // Để trình duyệt gửi network request bình thường
-  }
+  // Bỏ qua các request không phải GET
+  if (event.request.method !== "GET") return;
 
   // Chiến lược: Network-first với Cache Fallback cho HTML/JS/CSS tĩnh
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        // Nếu fetch thành công và là GET request, cập nhật vào cache
-        if (event.request.method === "GET" && networkResponse.status === 200) {
+        if (networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -79,7 +66,6 @@ self.addEventListener("fetch", (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // Fallback về trang chủ nếu là điều hướng trang
           if (event.request.mode === "navigate") {
             return caches.match("./index.html");
           }

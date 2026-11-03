@@ -1,97 +1,17 @@
 /**
  * ExpenseFlow Pro - Progressive Web App (PWA) Quản lý Chi tiêu Cá nhân
- * Hỗ trợ Dual-Mode:
- *   1. Chế độ Ngoại tuyến (Local Storage) - Truy cập tức thì không cần tài khoản hay cấu hình
- *   2. Chế độ Đám mây (Google Firebase) - Đồng bộ thời gian thực đa thiết bị & Bảo mật cô lập dữ liệu
+ * Xác thực bảo mật bằng Mã OTP Gmail & Cô lập dữ liệu đa người dùng (Multi-User Isolation)
+ * Không phụ thuộc Firebase Cloud - Chạy mượt mà, độc lập trên mọi thiết bị
  */
 
-// Import Firebase SDK v10 (Modular CDN)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { 
-  getAuth, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut, 
-  onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  serverTimestamp 
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
 /* ==========================================================================
-   1. CẤU HÌNH FIREBASE & LOCAL STORAGE KEYS
+   1. HẰNG SỐ & KHÓA LƯU TRỮ
    ========================================================================== */
 const STORAGE_KEYS = {
-  LOCAL_TRANSACTIONS: "expenseflow_local_transactions_v2",
-  CUSTOM_FIREBASE_CONFIG: "expenseflow_custom_firebase_config",
-  ACTIVE_MODE: "expenseflow_active_mode" // 'local' | 'firebase'
+  CURRENT_SESSION: "expenseflow_auth_session",
+  USER_DATA_PREFIX: "expenseflow_txs_"
 };
 
-// Cấu hình Firebase mặc định trong code (có thể để placeholder)
-const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
-// Lấy cấu hình từ LocalStorage (nếu người dùng đã cấu hình qua UI) hoặc dùng mặc định
-function getActiveFirebaseConfig() {
-  const saved = localStorage.getItem(STORAGE_KEYS.CUSTOM_FIREBASE_CONFIG);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed.apiKey && !parsed.apiKey.includes("YOUR_API_KEY")) {
-        return parsed;
-      }
-    } catch (e) {
-      console.warn("Lỗi đọc custom firebase config:", e);
-    }
-  }
-  return DEFAULT_FIREBASE_CONFIG;
-}
-
-const firebaseConfig = getActiveFirebaseConfig();
-
-// Kiểm tra xem cấu hình có hợp lệ không
-const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey && 
-  !firebaseConfig.apiKey.includes("YOUR_API_KEY") && 
-  firebaseConfig.projectId && 
-  !firebaseConfig.projectId.includes("YOUR_PROJECT_ID")
-);
-
-let app = null;
-let auth = null;
-let db = null;
-let googleProvider = null;
-
-if (isFirebaseConfigured) {
-  try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    googleProvider = new GoogleAuthProvider();
-    googleProvider.setCustomParameters({ prompt: 'select_account' });
-  } catch (error) {
-    console.error("Lỗi khởi tạo Firebase SDK:", error);
-  }
-}
-
-/* ==========================================================================
-   2. CẤU HÌNH DANH MỤC & BIỂU ĐỒ
-   ========================================================================== */
 const CATEGORIES = {
   expense: [
     { id: "food", name: "Ăn uống", icon: "fa-utensils", color: "#f97316" },
@@ -119,77 +39,21 @@ const CHART_PALETTE = [
 ];
 
 /* ==========================================================================
-   3. DỮ LIỆU MẪU BAN ĐẦU (KHI DÙNG CHẾ ĐỘ LOCAL)
+   2. TRẠNG THÁI ỨNG DỤNG (STATE)
    ========================================================================== */
-function getInitialSampleTransactions() {
-  const currentMonthStr = getCurrentMonthString();
-  return [
-    {
-      id: "sample-1",
-      type: "income",
-      amount: 22000000,
-      category: "Tiền lương",
-      date: `${currentMonthStr}-05`,
-      note: "Lương tháng qua chuyển khoản",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "sample-2",
-      type: "expense",
-      amount: 4500000,
-      category: "Tiền nhà & Hóa đơn",
-      date: `${currentMonthStr}-06`,
-      note: "Tiền thuê nhà + điện nước",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "sample-3",
-      type: "expense",
-      amount: 650000,
-      category: "Ăn uống",
-      date: `${currentMonthStr}-08`,
-      note: "Đi siêu thị Vinmart cuối tuần",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "sample-4",
-      type: "expense",
-      amount: 150000,
-      category: "Di chuyển & Xăng xe",
-      date: `${currentMonthStr}-10`,
-      note: "Đổ xăng đầy bình",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "sample-5",
-      type: "expense",
-      amount: 450000,
-      category: "Mua sắm",
-      date: `${currentMonthStr}-12`,
-      note: "Mua đồ dùng cá nhân",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "sample-6",
-      type: "income",
-      amount: 2000000,
-      category: "Tiền thưởng & Thưởng lễ",
-      date: `${currentMonthStr}-15`,
-      note: "Thưởng hoàn thành dự án",
-      createdAt: new Date().toISOString()
-    }
-  ];
-}
-
-/* ==========================================================================
-   4. TRẠNG THÁI ỨNG DỤNG (STATE)
-   ========================================================================== */
-let isLocalMode = false;
-let currentUser = null; // null | { uid, displayName, email, photoURL, isLocal: boolean }
-let unsubscribeFirestore = null;
+let currentUser = null; // { email, displayName, avatar, isGuest }
 let allTransactions = [];
 let expenseChartInstance = null;
-let deferredPrompt = null; // Bắt sự kiện cài đặt PWA
+let deferredPrompt = null;
+
+// OTP State
+let pendingOtp = {
+  email: "",
+  code: "",
+  expiresAt: 0
+};
+let otpCountdownTimer = null;
+let transactionToDeleteId = null;
 
 const currentFilter = {
   month: getCurrentMonthString(),
@@ -198,13 +62,11 @@ const currentFilter = {
   searchKeyword: ""
 };
 
-let transactionToDeleteId = null;
-
 /* ==========================================================================
-   5. DOM ELEMENTS
+   3. DOM ELEMENTS
    ========================================================================== */
 const DOM = {
-  // PWA Elements
+  // PWA
   pwaInstallBanner: document.getElementById("pwaInstallBanner"),
   pwaInstallActionBtn: document.getElementById("pwaInstallActionBtn"),
   pwaCloseBannerBtn: document.getElementById("pwaCloseBannerBtn"),
@@ -213,7 +75,46 @@ const DOM = {
   iosInstallModal: document.getElementById("iosInstallModal"),
   closeIosInstallModalBtn: document.getElementById("closeIosInstallModalBtn"),
 
-  // Navigation Mobile
+  // Views & Screen
+  loadingScreen: document.getElementById("loadingScreen"),
+  guestView: document.getElementById("guestView"),
+  appView: document.getElementById("appView"),
+
+  // Auth Header & Hero
+  openOtpModalBtn: document.getElementById("openOtpModalBtn"),
+  heroOtpBtn: document.getElementById("heroOtpBtn"),
+  guestTrialBtn: document.getElementById("guestTrialBtn"),
+  userProfile: document.getElementById("userProfile"),
+  userAvatar: document.getElementById("userAvatar"),
+  userName: document.getElementById("userName"),
+  userEmailTag: document.getElementById("userEmailTag"),
+  logoutBtn: document.getElementById("logoutBtn"),
+
+  // OTP Modal Elements
+  gmailOtpModal: document.getElementById("gmailOtpModal"),
+  otpModalBackdrop: document.getElementById("otpModalBackdrop"),
+  closeOtpModalBtn: document.getElementById("closeOtpModalBtn"),
+  otpStepEmail: document.getElementById("otpStepEmail"),
+  otpStepVerify: document.getElementById("otpStepVerify"),
+  sendOtpForm: document.getElementById("sendOtpForm"),
+  gmailInput: document.getElementById("gmailInput"),
+  sendOtpBtn: document.getElementById("sendOtpBtn"),
+  targetEmailDisplay: document.getElementById("targetEmailDisplay"),
+  changeEmailBtn: document.getElementById("changeEmailBtn"),
+  otpBoxes: document.querySelectorAll(".otp-box"),
+  verifyOtpBtn: document.getElementById("verifyOtpBtn"),
+  countdownText: document.getElementById("countdownText"),
+  countdownSec: document.getElementById("countdownSec"),
+  resendOtpBtn: document.getElementById("resendOtpBtn"),
+  quickGuestFromModalBtn: document.getElementById("quickGuestFromModalBtn"),
+
+  // Gmail Simulator Banner
+  gmailSimulatorBanner: document.getElementById("gmailSimulatorBanner"),
+  simulatedOtpCode: document.getElementById("simulatedOtpCode"),
+  autoFillOtpBtn: document.getElementById("autoFillOtpBtn"),
+  closeGmailSimBtn: document.getElementById("closeGmailSimBtn"),
+
+  // Mobile Bottom Navigation
   navOverviewBtn: document.getElementById("navOverviewBtn"),
   navChartBtn: document.getElementById("navChartBtn"),
   navHistoryBtn: document.getElementById("navHistoryBtn"),
@@ -221,41 +122,6 @@ const DOM = {
   overviewSection: document.getElementById("overviewSection"),
   chartSection: document.getElementById("chartSection"),
   transactionsSection: document.getElementById("transactionsSection"),
-
-  // Mode & Config Elements
-  modeBadge: document.getElementById("modeBadge"),
-  modeBadgeText: document.getElementById("modeBadgeText"),
-  openCustomConfigBtn: document.getElementById("openCustomConfigBtn"),
-  quickLocalBtn: document.getElementById("quickLocalBtn"),
-  heroLocalBtn: document.getElementById("heroLocalBtn"),
-  customConfigModal: document.getElementById("customConfigModal"),
-  closeCustomConfigBtn: document.getElementById("closeCustomConfigBtn"),
-  cancelCustomConfigBtn: document.getElementById("cancelCustomConfigBtn"),
-  customConfigForm: document.getElementById("customConfigForm"),
-  resetConfigBtn: document.getElementById("resetConfigBtn"),
-  cfgApiKey: document.getElementById("cfgApiKey"),
-  cfgProjectId: document.getElementById("cfgProjectId"),
-  cfgAuthDomain: document.getElementById("cfgAuthDomain"),
-  cfgAppId: document.getElementById("cfgAppId"),
-  cfgStorageBucket: document.getElementById("cfgStorageBucket"),
-
-  // Alert & Screens
-  firebaseConfigAlert: document.getElementById("firebaseConfigAlert"),
-  openConfigGuideBtn: document.getElementById("openConfigGuideBtn"),
-  configGuideModal: document.getElementById("configGuideModal"),
-  closeConfigGuideBtn: document.getElementById("closeConfigGuideBtn"),
-  closeConfigGuideOkBtn: document.getElementById("closeConfigGuideOkBtn"),
-  loadingScreen: document.getElementById("loadingScreen"),
-  guestView: document.getElementById("guestView"),
-  appView: document.getElementById("appView"),
-
-  // Auth
-  loginBtn: document.getElementById("loginBtn"),
-  heroLoginBtn: document.getElementById("heroLoginBtn"),
-  logoutBtn: document.getElementById("logoutBtn"),
-  userProfile: document.getElementById("userProfile"),
-  userAvatar: document.getElementById("userAvatar"),
-  userName: document.getElementById("userName"),
 
   // KPIs
   totalIncome: document.getElementById("totalIncome"),
@@ -274,14 +140,14 @@ const DOM = {
   typeFilterBtns: document.querySelectorAll(".type-filter-btn"),
   filteredCountBadge: document.getElementById("filteredCountBadge"),
 
-  // Lists & Charts
+  // Transactions & Charts
   transactionsList: document.getElementById("transactionsList"),
   noTransactionsState: document.getElementById("noTransactionsState"),
   expenseCategoryChart: document.getElementById("expenseCategoryChart"),
   chartEmptyState: document.getElementById("chartEmptyState"),
   categoryBreakdownList: document.getElementById("categoryBreakdownList"),
 
-  // Modals
+  // Modal Giao Dịch
   openAddModalBtn: document.getElementById("openAddModalBtn"),
   transactionModal: document.getElementById("transactionModal"),
   modalBackdrop: document.getElementById("modalBackdrop"),
@@ -304,61 +170,47 @@ const DOM = {
   cancelDeleteBtn: document.getElementById("cancelDeleteBtn"),
   confirmDeleteBtn: document.getElementById("confirmDeleteBtn"),
 
-  // Toast
+  // Toast Container
   toastContainer: document.getElementById("toastContainer")
 };
 
 /* ==========================================================================
-   6. KHỞI TẠO ỨNG DỤNG & SERVICE WORKER (PWA)
+   4. KHỞI CHẠY ỨNG DỤNG
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. Đăng ký Service Worker
+  // 1. Đăng ký Service Worker (PWA)
   registerServiceWorker();
 
-  // 2. Thiết lập PWA Install Prompt Listener
+  // 2. Lắng nghe Install Prompt
   setupPwaInstallPrompt();
 
-  // 3. Khởi tạo phương thức xác thực hoặc tự động kích hoạt Local Mode
-  initAppMode();
+  // 3. Khôi phục phiên đăng nhập (nếu đã lưu)
+  restoreUserSession();
 
-  // 4. Lắng nghe các sự kiện giao diện
+  // 4. Lắng nghe sự kiện giao diện
   setupEventListeners();
+  setupOtpInputHandlers();
   populateCategorySelect("expense");
   setDefaultModalDate();
-  populateConfigInputs();
 });
 
-/**
- * Đăng ký Service Worker cho PWA
- */
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js")
-        .then((reg) => {
-          console.log("[PWA] Service Worker đăng ký thành công với scope:", reg.scope);
-        })
-        .catch((err) => {
-          console.warn("[PWA] Đăng ký Service Worker thất bại:", err);
-        });
+        .then((reg) => console.log("[PWA] Service Worker đăng ký thành công:", reg.scope))
+        .catch((err) => console.warn("[PWA] Đăng ký Service Worker thất bại:", err));
     });
   }
 }
 
-/**
- * Xử lý sự kiện beforeinstallprompt (Bấm nút là tải được App)
- */
 function setupPwaInstallPrompt() {
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-  if (isStandalone) {
-    console.log("[PWA] Đang chạy trong chế độ Standalone App.");
-    return;
-  }
+  if (isStandalone) return;
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-
     if (DOM.pwaInstallBanner) DOM.pwaInstallBanner.classList.remove("hidden");
     if (DOM.headerInstallBtn) {
       DOM.headerInstallBtn.classList.remove("hidden");
@@ -370,13 +222,10 @@ function setupPwaInstallPrompt() {
     deferredPrompt = null;
     if (DOM.pwaInstallBanner) DOM.pwaInstallBanner.classList.add("hidden");
     if (DOM.headerInstallBtn) DOM.headerInstallBtn.classList.add("hidden");
-    showToast("🎉 Chúc mừng! ExpenseFlow đã được cài đặt vào máy của bạn.", "success");
+    showToast("🎉 ExpenseFlow đã được cài đặt vào máy của bạn!", "success");
   });
 }
 
-/**
- * Kích hoạt hộp thoại cài đặt App khi người dùng bấm nút
- */
 async function triggerPwaInstall() {
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (isIos) {
@@ -386,8 +235,7 @@ async function triggerPwaInstall() {
 
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log("[PWA] Lựa chọn của người dùng:", outcome);
+    await deferredPrompt.userChoice;
     deferredPrompt = null;
     if (DOM.pwaInstallBanner) DOM.pwaInstallBanner.classList.add("hidden");
   } else {
@@ -396,144 +244,287 @@ async function triggerPwaInstall() {
 }
 
 /* ==========================================================================
-   7. APP MODE: LOCAL STORAGE FIRST & FIREBASE DUAL MODE
+   5. XÁC THỰC BẰNG MÃ OTP GMAIL & PHIÊN ĐĂNG NHẬP
    ========================================================================== */
-function initAppMode() {
-  const savedMode = localStorage.getItem(STORAGE_KEYS.ACTIVE_MODE);
+function restoreUserSession() {
+  const rawSession = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
+  DOM.loadingScreen.classList.add("hidden");
 
-  if (savedMode === "firebase" && isFirebaseConfigured && auth) {
-    // Người dùng trước đó chọn Firebase
-    initFirebaseMode();
-  } else if (savedMode === "local") {
-    // Người dùng trước đó chọn Local Mode
-    switchToLocalMode(false);
-  } else {
-    // Lần đầu vào web: Tự động kích hoạt Local Mode để mọi người có thể dùng ngay lập tức!
-    switchToLocalMode(true);
+  if (rawSession) {
+    try {
+      const session = JSON.parse(rawSession);
+      if (session && session.email) {
+        loginUserSuccess(session, false);
+        return;
+      }
+    } catch (e) {
+      console.error("Lỗi đọc session:", e);
+    }
   }
+
+  // Nếu chưa đăng nhập: Hiển thị màn hình Guest
+  showGuestView();
 }
 
-function initFirebaseMode() {
-  if (!isFirebaseConfigured || !auth) {
-    switchToLocalMode(false);
+function showGuestView() {
+  currentUser = null;
+  DOM.guestView.classList.remove("hidden");
+  DOM.appView.classList.add("hidden");
+  DOM.openOtpModalBtn.classList.remove("hidden");
+  DOM.openOtpModalBtn.classList.add("flex");
+  DOM.userProfile.classList.add("hidden");
+  DOM.userProfile.classList.remove("flex");
+}
+
+function openOtpModal() {
+  DOM.gmailOtpModal.classList.remove("hidden");
+  DOM.otpStepEmail.classList.remove("hidden");
+  DOM.otpStepVerify.classList.add("hidden");
+  DOM.gmailInput.focus();
+}
+
+function closeOtpModal() {
+  DOM.gmailOtpModal.classList.add("hidden");
+  clearInterval(otpCountdownTimer);
+}
+
+function handleSendOtp(e) {
+  e.preventDefault();
+  const email = DOM.gmailInput.value.trim().toLowerCase();
+
+  if (!email || !validateEmail(email)) {
+    showToast("Vui lòng nhập địa chỉ email hợp lệ (ví dụ: ten@gmail.com)!", "warning");
+    DOM.gmailInput.focus();
     return;
   }
 
-  isLocalMode = false;
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_MODE, "firebase");
-  updateModeBadgeUI(false);
+  // Sinh mã OTP ngẫu nhiên 6 chữ số
+  const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  pendingOtp = {
+    email: email,
+    code: randomOtp,
+    expiresAt: Date.now() + 5 * 60 * 1000 // 5 phút
+  };
 
-  onAuthStateChanged(auth, (user) => {
-    DOM.loadingScreen.classList.add("hidden");
+  DOM.sendOtpBtn.disabled = true;
+  DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Đang gửi mã...</span>`;
 
-    if (user) {
-      currentUser = user;
-      updateAuthUI(true);
-      showToast(`Chào mừng ${user.displayName || user.email}!`, "success");
-      initFirestoreListener(user.uid);
-    } else {
-      currentUser = null;
-      if (unsubscribeFirestore) {
-        unsubscribeFirestore();
-        unsubscribeFirestore = null;
-      }
-      allTransactions = [];
-      updateAuthUI(false);
+  setTimeout(() => {
+    DOM.sendOtpBtn.disabled = false;
+    DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>Gửi mã xác thực OTP</span>`;
+
+    // Chuyển sang bước 2: Nhập OTP
+    DOM.otpStepEmail.classList.add("hidden");
+    DOM.otpStepVerify.classList.remove("hidden");
+    DOM.targetEmailDisplay.textContent = email;
+
+    // Reset các ô OTP và focus ô đầu tiên
+    DOM.otpBoxes.forEach(b => b.value = "");
+    DOM.otpBoxes[0].focus();
+
+    // Hiển thị thông báo và Banner mô phỏng Hộp thư Gmail
+    showToast(`Đã gửi mã OTP đến ${email}!`, "success", 5000);
+    showGmailSimulator(randomOtp);
+
+    // Bắt đầu đếm ngược 60s
+    startOtpCountdown(60);
+  }, 600);
+}
+
+function showGmailSimulator(otpCode) {
+  DOM.simulatedOtpCode.textContent = otpCode;
+  DOM.gmailSimulatorBanner.classList.remove("hidden");
+}
+
+function startOtpCountdown(seconds) {
+  clearInterval(otpCountdownTimer);
+  let remain = seconds;
+  DOM.countdownText.classList.remove("hidden");
+  DOM.resendOtpBtn.classList.add("hidden");
+  DOM.countdownSec.textContent = remain;
+
+  otpCountdownTimer = setInterval(() => {
+    remain--;
+    DOM.countdownSec.textContent = remain;
+    if (remain <= 0) {
+      clearInterval(otpCountdownTimer);
+      DOM.countdownText.classList.add("hidden");
+      DOM.resendOtpBtn.classList.remove("hidden");
     }
+  }, 1000);
+}
+
+function setupOtpInputHandlers() {
+  DOM.otpBoxes.forEach((box, index) => {
+    // Chỉ cho phép nhập số
+    box.addEventListener("input", (e) => {
+      const val = e.target.value.replace(/\D/g, "");
+      e.target.value = val;
+
+      if (val && index < DOM.otpBoxes.length - 1) {
+        DOM.otpBoxes[index + 1].focus();
+      }
+
+      // Nếu đã điền đủ 6 số, tự động kích hoạt xác nhận
+      const fullCode = Array.from(DOM.otpBoxes).map(b => b.value).join("");
+      if (fullCode.length === 6) {
+        handleVerifyOtp();
+      }
+    });
+
+    // Xử lý phím Backspace
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && !box.value && index > 0) {
+        DOM.otpBoxes[index - 1].focus();
+      }
+    });
+
+    // Xử lý dán (Paste) mã 6 số
+    box.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const pasteData = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "").slice(0, 6);
+      if (pasteData) {
+        pasteData.split("").forEach((char, idx) => {
+          if (DOM.otpBoxes[idx]) DOM.otpBoxes[idx].value = char;
+        });
+        const nextIndex = Math.min(pasteData.length, DOM.otpBoxes.length - 1);
+        DOM.otpBoxes[nextIndex].focus();
+        if (pasteData.length === 6) {
+          handleVerifyOtp();
+        }
+      }
+    });
+  });
+
+  // Tự động điền từ Banner Gmail Simulator
+  DOM.autoFillOtpBtn.addEventListener("click", () => {
+    if (pendingOtp.code) {
+      pendingOtp.code.split("").forEach((char, idx) => {
+        if (DOM.otpBoxes[idx]) DOM.otpBoxes[idx].value = char;
+      });
+      DOM.gmailSimulatorBanner.classList.add("hidden");
+      handleVerifyOtp();
+    }
+  });
+
+  DOM.closeGmailSimBtn.addEventListener("click", () => {
+    DOM.gmailSimulatorBanner.classList.add("hidden");
   });
 }
 
-function switchToLocalMode(isFirstTime = false) {
-  isLocalMode = true;
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_MODE, "local");
+function handleVerifyOtp() {
+  const enteredOtp = Array.from(DOM.otpBoxes).map(b => b.value).join("");
 
-  if (unsubscribeFirestore) {
-    unsubscribeFirestore();
-    unsubscribeFirestore = null;
+  if (enteredOtp.length < 6) {
+    showToast("Vui lòng nhập đủ 6 chữ số mã OTP!", "warning");
+    return;
   }
 
-  currentUser = {
-    uid: "local-user",
-    displayName: "Người dùng Thiết bị",
-    email: "local@device",
-    photoURL: "",
-    isLocal: true
+  if (Date.now() > pendingOtp.expiresAt) {
+    showToast("Mã OTP đã hết hiệu lực. Vui lòng bấm gửi lại!", "error");
+    return;
+  }
+
+  if (enteredOtp !== pendingOtp.code) {
+    showToast("Mã OTP không chính xác. Vui lòng kiểm tra lại!", "error");
+    DOM.otpBoxes.forEach(b => b.classList.add("border-rose-500"));
+    setTimeout(() => {
+      DOM.otpBoxes.forEach(b => b.classList.remove("border-rose-500"));
+    }, 1500);
+    return;
+  }
+
+  // Xác thực thành công!
+  const email = pendingOtp.email;
+  const namePart = email.split("@")[0];
+  const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+
+  const session = {
+    email: email,
+    displayName: displayName,
+    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff&bold=true`,
+    loginAt: new Date().toISOString(),
+    isGuest: false
   };
 
-  DOM.loadingScreen.classList.add("hidden");
-  updateAuthUI(true);
-  updateModeBadgeUI(true);
+  localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session));
+  closeOtpModal();
+  DOM.gmailSimulatorBanner.classList.add("hidden");
+  loginUserSuccess(session, true);
+}
 
-  // Nạp dữ liệu từ LocalStorage
-  loadLocalTransactions(isFirstTime);
+function handleGuestLogin() {
+  const guestSession = {
+    email: "guest@expenseflow.local",
+    displayName: "Khách Trải Nghiệm",
+    avatar: `https://ui-avatars.com/api/?name=Khach&background=64748b&color=fff`,
+    loginAt: new Date().toISOString(),
+    isGuest: true
+  };
 
-  if (isFirstTime) {
-    showToast("✨ Đã kích hoạt Chế độ Ngoại tuyến: Lưu dữ liệu an toàn ngay trên máy của bạn!", "info", 5000);
-  } else {
-    showToast("Đã chuyển sang Chế độ Ngoại tuyến (Local).", "success");
+  localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(guestSession));
+  closeOtpModal();
+  loginUserSuccess(guestSession, true);
+}
+
+function loginUserSuccess(session, isNewLogin = false) {
+  currentUser = session;
+
+  // Cập nhật giao diện Header
+  DOM.guestView.classList.add("hidden");
+  DOM.appView.classList.remove("hidden");
+  DOM.openOtpModalBtn.classList.add("hidden");
+  DOM.openOtpModalBtn.classList.remove("flex");
+  DOM.userProfile.classList.remove("hidden");
+  DOM.userProfile.classList.add("flex");
+
+  DOM.userName.textContent = session.displayName;
+  DOM.userEmailTag.textContent = session.email;
+  DOM.userAvatar.src = session.avatar;
+
+  // Nạp dữ liệu của người dùng này
+  loadUserData(session.email);
+
+  if (isNewLogin) {
+    showToast(`Chào mừng ${session.displayName} đăng nhập thành công!`, "success");
   }
 }
 
-function updateModeBadgeUI(isLocal) {
-  if (!DOM.modeBadge) return;
-  DOM.modeBadge.classList.remove("hidden");
-  DOM.modeBadge.classList.add("flex");
-
-  if (isLocal) {
-    DOM.modeBadge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80";
-    DOM.modeBadge.querySelector("span").className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
-    DOM.modeBadgeText.textContent = "Bản Ngoại tuyến";
-    DOM.modeBadge.title = "Dữ liệu được lưu trong trình duyệt của bạn";
-  } else {
-    DOM.modeBadge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80";
-    DOM.modeBadge.querySelector("span").className = "w-2 h-2 rounded-full bg-emerald-500";
-    DOM.modeBadgeText.textContent = "Firebase Cloud";
-    DOM.modeBadge.title = "Đồng bộ thời gian thực qua Cloud Firestore";
-  }
-}
-
-function updateAuthUI(isLoggedIn) {
-  if (isLoggedIn && currentUser) {
-    DOM.guestView.classList.add("hidden");
-    DOM.appView.classList.remove("hidden");
-    DOM.loginBtn.classList.add("hidden");
-    DOM.quickLocalBtn.classList.add("hidden");
-    DOM.userProfile.classList.remove("hidden");
-    DOM.userProfile.classList.add("flex");
-
-    DOM.userName.textContent = currentUser.displayName || (currentUser.isLocal ? "Khách Local" : "Bạn");
-    DOM.userAvatar.src = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName || "User")}&background=4f46e5&color=fff`;
-  } else {
-    DOM.guestView.classList.remove("hidden");
-    DOM.appView.classList.add("hidden");
-    DOM.loginBtn.classList.remove("hidden");
-    DOM.loginBtn.classList.add("flex");
-    DOM.quickLocalBtn.classList.remove("hidden");
-    DOM.quickLocalBtn.classList.add("flex");
-    DOM.userProfile.classList.add("hidden");
-    DOM.userProfile.classList.remove("flex");
+function handleLogout() {
+  if (confirm("Bạn có chắc chắn muốn đăng xuất tài khoản?")) {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_SESSION);
+    showGuestView();
+    allTransactions = [];
+    showToast("Đã đăng xuất tài khoản an toàn.", "info");
   }
 }
 
 /* ==========================================================================
-   8. LOCAL STORAGE CRUD OPERATIONS
+   6. CÔ LẬP DỮ LIỆU THEO TỪNG GMAIL (MULTI-USER ISOLATION)
    ========================================================================== */
-function loadLocalTransactions(seedIfEmpty = false) {
-  const raw = localStorage.getItem(STORAGE_KEYS.LOCAL_TRANSACTIONS);
+function getUserStorageKey(email) {
+  const safeEmail = encodeURIComponent(email).replace(/[^a-zA-Z0-9_]/g, "_");
+  return `${STORAGE_KEYS.USER_DATA_PREFIX}${safeEmail}`;
+}
+
+function loadUserData(email) {
+  const key = getUserStorageKey(email);
+  const rawData = localStorage.getItem(key);
   let list = [];
 
-  if (raw) {
+  if (rawData) {
     try {
-      list = JSON.parse(raw);
+      list = JSON.parse(rawData);
     } catch (e) {
-      console.error("Lỗi parse LocalStorage:", e);
+      console.error("Lỗi parse data:", e);
       list = [];
     }
   }
 
-  if (list.length === 0 && seedIfEmpty) {
-    list = getInitialSampleTransactions();
-    saveLocalTransactions(list);
+  // Nếu tài khoản mới chưa có dữ liệu: Tự động nạp dữ liệu mẫu ban đầu
+  if (list.length === 0) {
+    list = generateSampleTransactions();
+    saveUserData(email, list);
   }
 
   allTransactions = list;
@@ -541,47 +532,79 @@ function loadLocalTransactions(seedIfEmpty = false) {
   applyFiltersAndRender();
 }
 
-function saveLocalTransactions(list) {
-  localStorage.setItem(STORAGE_KEYS.LOCAL_TRANSACTIONS, JSON.stringify(list));
+function saveUserData(email, list) {
+  const key = getUserStorageKey(email);
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+function generateSampleTransactions() {
+  const m = getCurrentMonthString();
+  return [
+    {
+      id: "tx-" + Date.now() + "-1",
+      type: "income",
+      amount: 25000000,
+      category: "Tiền lương",
+      date: `${m}-05`,
+      note: "Lương tháng chuyển khoản ngân hàng",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "tx-" + Date.now() + "-2",
+      type: "expense",
+      amount: 4500000,
+      category: "Tiền nhà & Hóa đơn",
+      date: `${m}-06`,
+      note: "Tiền thuê nhà + tiền điện nước",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "tx-" + Date.now() + "-3",
+      type: "expense",
+      amount: 680000,
+      category: "Ăn uống",
+      date: `${m}-08`,
+      note: "Đi siêu thị mua thực phẩm tuần",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "tx-" + Date.now() + "-4",
+      type: "expense",
+      amount: 150000,
+      category: "Di chuyển & Xăng xe",
+      date: `${m}-10`,
+      note: "Đổ xăng xe máy",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "tx-" + Date.now() + "-5",
+      type: "expense",
+      amount: 320000,
+      category: "Mua sắm",
+      date: `${m}-12`,
+      note: "Đồ dùng cá nhân",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "tx-" + Date.now() + "-6",
+      type: "income",
+      amount: 3000000,
+      category: "Tiền thưởng & Thưởng lễ",
+      date: `${m}-15`,
+      note: "Thưởng KPI xuất sắc",
+      createdAt: new Date().toISOString()
+    }
+  ];
 }
 
 /* ==========================================================================
-   9. FIRESTORE REAL-TIME LISTENER
+   7. CRUD GIAO DỊCH THU CHI
    ========================================================================== */
-function initFirestoreListener(userId) {
-  if (unsubscribeFirestore) {
-    unsubscribeFirestore();
-  }
-
-  const expensesRef = collection(db, "users", userId, "expenses");
-  const q = query(expensesRef, orderBy("date", "desc"));
-
-  unsubscribeFirestore = onSnapshot(q, (snapshot) => {
-    const list = [];
-    snapshot.forEach((docSnap) => {
-      list.push({
-        id: docSnap.id,
-        ...docSnap.data()
-      });
-    });
-
-    allTransactions = list;
-    updateMonthFilterOptions();
-    applyFiltersAndRender();
-  }, (error) => {
-    console.error("Lỗi Firestore:", error);
-    showToast("Lỗi đồng bộ: " + error.message, "error", 6000);
-  });
-}
-
-/* ==========================================================================
-   10. CRUD OPERATIONS (LOCAL & CLOUD)
-   ========================================================================== */
-async function handleSaveTransaction(event) {
-  event.preventDefault();
+function handleSaveTransaction(e) {
+  e.preventDefault();
 
   if (!currentUser) {
-    showToast("Vui lòng kích hoạt chế độ Ngoại tuyến hoặc Đăng nhập!", "warning");
+    showToast("Vui lòng đăng nhập để lưu giao dịch!", "warning");
     return;
   }
 
@@ -612,57 +635,31 @@ async function handleSaveTransaction(event) {
     note: note || (type === "expense" ? "Khoản chi" : "Khoản thu")
   };
 
-  const origText = DOM.saveTransactionBtn.innerHTML;
-  DOM.saveTransactionBtn.disabled = true;
-  DOM.saveTransactionBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Đang lưu...</span>`;
-
-  try {
-    if (isLocalMode) {
-      // Lưu vào LocalStorage
-      if (editId) {
-        const idx = allTransactions.findIndex(t => t.id === editId);
-        if (idx !== -1) {
-          allTransactions[idx] = {
-            ...allTransactions[idx],
-            ...transactionData,
-            updatedAt: new Date().toISOString()
-          };
-          showToast("Đã cập nhật giao dịch thành công!", "success");
-        }
-      } else {
-        const newItem = {
-          id: "local-" + Date.now(),
-          ...transactionData,
-          createdAt: new Date().toISOString()
-        };
-        allTransactions.unshift(newItem);
-        showToast("Đã thêm giao dịch mới!", "success");
-      }
-
-      saveLocalTransactions(allTransactions);
-      updateMonthFilterOptions();
-      applyFiltersAndRender();
-      closeTransactionModal();
-    } else {
-      // Lưu vào Cloud Firestore
-      if (editId) {
-        const docRef = doc(db, "users", currentUser.uid, "expenses", editId);
-        await updateDoc(docRef, { ...transactionData, updatedAt: serverTimestamp() });
-        showToast("Cập nhật giao dịch đám mây thành công!", "success");
-      } else {
-        const colRef = collection(db, "users", currentUser.uid, "expenses");
-        await addDoc(colRef, { ...transactionData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-        showToast("Đã lưu giao dịch vào Firebase!", "success");
-      }
-      closeTransactionModal();
+  if (editId) {
+    const idx = allTransactions.findIndex(t => t.id === editId);
+    if (idx !== -1) {
+      allTransactions[idx] = {
+        ...allTransactions[idx],
+        ...transactionData,
+        updatedAt: new Date().toISOString()
+      };
+      showToast("Đã cập nhật giao dịch thành công!", "success");
     }
-  } catch (error) {
-    console.error("Lỗi khi lưu giao dịch:", error);
-    showToast("Lỗi lưu dữ liệu: " + error.message, "error", 5000);
-  } finally {
-    DOM.saveTransactionBtn.disabled = false;
-    DOM.saveTransactionBtn.innerHTML = origText;
+  } else {
+    const newItem = {
+      id: "tx-" + Date.now(),
+      ...transactionData,
+      createdAt: new Date().toISOString()
+    };
+    allTransactions.unshift(newItem);
+    showToast("Đã thêm giao dịch mới!", "success");
   }
+
+  // Lưu trữ dữ liệu vào kho riêng của người dùng
+  saveUserData(currentUser.email, allTransactions);
+  updateMonthFilterOptions();
+  applyFiltersAndRender();
+  closeTransactionModal();
 }
 
 function openEditTransactionModal(id) {
@@ -687,38 +684,19 @@ function openEditTransactionModal(id) {
   DOM.amountInput.focus();
 }
 
-async function handleConfirmDelete() {
+function handleConfirmDelete() {
   if (!currentUser || !transactionToDeleteId) return;
 
-  DOM.confirmDeleteBtn.disabled = true;
-  DOM.confirmDeleteBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Xóa...`;
-
-  try {
-    if (isLocalMode) {
-      allTransactions = allTransactions.filter(t => t.id !== transactionToDeleteId);
-      saveLocalTransactions(allTransactions);
-      updateMonthFilterOptions();
-      applyFiltersAndRender();
-      showToast("Đã xóa giao dịch thành công!", "success");
-      closeDeleteModal();
-    } else {
-      const docRef = doc(db, "users", currentUser.uid, "expenses", transactionToDeleteId);
-      await deleteDoc(docRef);
-      showToast("Đã xóa giao dịch khỏi Firestore!", "success");
-      closeDeleteModal();
-    }
-  } catch (error) {
-    console.error("Lỗi xóa:", error);
-    showToast("Không thể xóa: " + error.message, "error");
-  } finally {
-    DOM.confirmDeleteBtn.disabled = false;
-    DOM.confirmDeleteBtn.textContent = "Xóa vĩnh viễn";
-    transactionToDeleteId = null;
-  }
+  allTransactions = allTransactions.filter(t => t.id !== transactionToDeleteId);
+  saveUserData(currentUser.email, allTransactions);
+  updateMonthFilterOptions();
+  applyFiltersAndRender();
+  showToast("Đã xóa giao dịch thành công!", "success");
+  closeDeleteModal();
 }
 
 /* ==========================================================================
-   11. BỘ LỌC & HIỂN THỊ THỐNG KÊ
+   8. BỘ LỌC, THỐNG KÊ & BIỂU ĐỒ
    ========================================================================== */
 function updateMonthFilterOptions() {
   const monthsSet = new Set();
@@ -979,7 +957,7 @@ function renderCategoryDoughnutChart(transactions) {
 }
 
 /* ==========================================================================
-   12. EXPORT CSV (UTF-8 EXCEL)
+   9. XUẤT CSV (UTF-8 EXCEL)
    ========================================================================== */
 function exportTransactionsToCSV() {
   if (allTransactions.length === 0) {
@@ -1015,123 +993,45 @@ function exportTransactionsToCSV() {
 }
 
 /* ==========================================================================
-   13. FIREBASE CONFIG MODAL & EVENT LISTENERS
-   ========================================================================== */
-function populateConfigInputs() {
-  const cfg = getActiveFirebaseConfig();
-  if (DOM.cfgApiKey && cfg.apiKey && !cfg.apiKey.includes("YOUR_API_KEY")) DOM.cfgApiKey.value = cfg.apiKey;
-  if (DOM.cfgProjectId && cfg.projectId && !cfg.projectId.includes("YOUR_PROJECT_ID")) DOM.cfgProjectId.value = cfg.projectId;
-  if (DOM.cfgAuthDomain && cfg.authDomain && !cfg.authDomain.includes("YOUR_PROJECT_ID")) DOM.cfgAuthDomain.value = cfg.authDomain;
-  if (DOM.cfgAppId && cfg.appId && !cfg.appId.includes("YOUR_APP_ID")) DOM.cfgAppId.value = cfg.appId;
-  if (DOM.cfgStorageBucket && cfg.storageBucket && !cfg.storageBucket.includes("YOUR_PROJECT_ID")) DOM.cfgStorageBucket.value = cfg.storageBucket;
-}
-
-function handleSaveCustomConfig(e) {
-  e.preventDefault();
-  const apiKey = DOM.cfgApiKey.value.trim();
-  const projectId = DOM.cfgProjectId.value.trim();
-  const authDomain = DOM.cfgAuthDomain.value.trim();
-  const appId = DOM.cfgAppId.value.trim();
-  const storageBucket = DOM.cfgStorageBucket.value.trim();
-
-  if (!apiKey || !projectId) {
-    showToast("Vui lòng nhập tối thiểu API Key và Project ID!", "warning");
-    return;
-  }
-
-  const customCfg = {
-    apiKey,
-    projectId,
-    authDomain: authDomain || `${projectId}.firebaseapp.com`,
-    appId: appId || "",
-    storageBucket: storageBucket || `${projectId}.appspot.com`
-  };
-
-  localStorage.setItem(STORAGE_KEYS.CUSTOM_FIREBASE_CONFIG, JSON.stringify(customCfg));
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_MODE, "firebase");
-  showToast("Đã lưu cấu hình Firebase! Trang sẽ làm mới để kết nối...", "success", 2000);
-  setTimeout(() => window.location.reload(), 1500);
-}
-
-function handleResetConfig() {
-  if (confirm("Bạn có chắc muốn xóa cấu hình Firebase đã lưu trên trình duyệt?")) {
-    localStorage.removeItem(STORAGE_KEYS.CUSTOM_FIREBASE_CONFIG);
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_MODE, "local");
-    showToast("Đã xóa cấu hình. Đang chuyển về chế độ Ngoại tuyến...", "info");
-    setTimeout(() => window.location.reload(), 1200);
-  }
-}
-
-async function handleGoogleLogin() {
-  if (!isFirebaseConfigured) {
-    if (DOM.customConfigModal) {
-      DOM.customConfigModal.classList.remove("hidden");
-    } else if (DOM.configGuideModal) {
-      DOM.configGuideModal.classList.remove("hidden");
-    }
-    showToast("Vui lòng nhập thông tin Firebase để kích hoạt Đăng nhập Google!", "warning", 6000);
-    return;
-  }
-
-  try {
-    await signInWithPopup(auth, googleProvider);
-  } catch (error) {
-    console.error("Lỗi Google Sign-in:", error);
-    let msg = "Đăng nhập thất bại. Vui lòng thử lại!";
-    if (error.code === "auth/popup-closed-by-user") {
-      msg = "Bạn vừa đóng cửa sổ đăng nhập.";
-    } else if (error.code === "auth/unauthorized-domain") {
-      msg = "Tên miền hiện tại chưa được cấp phép trong Firebase > Authorized Domains.";
-    }
-    showToast(msg, "error", 6000);
-  }
-}
-
-async function handleLogout() {
-  if (isLocalMode) {
-    if (confirm("Bạn muốn đổi sang đăng nhập Firebase Google hay xóa dữ liệu trên máy?")) {
-      DOM.guestView.classList.remove("hidden");
-      DOM.appView.classList.add("hidden");
-      DOM.userProfile.classList.add("hidden");
-      DOM.loginBtn.classList.remove("hidden");
-      DOM.quickLocalBtn.classList.remove("hidden");
-      showToast("Đã chuyển về màn hình chính.", "info");
-    }
-    return;
-  }
-
-  if (!auth) return;
-  try {
-    await signOut(auth);
-    showToast("Đã đăng xuất tài khoản an toàn.", "info");
-  } catch (error) {
-    console.error("Lỗi logout:", error);
-  }
-}
-
-/* ==========================================================================
-   14. SỰ KIỆN GIAO DIỆN & TIỆN ÍCH
+   10. TIỆN ÍCH & SỰ KIỆN GIAO DIỆN
    ========================================================================== */
 function setupEventListeners() {
-  // PWA Install Triggers
+  // PWA Triggers
   if (DOM.pwaInstallActionBtn) DOM.pwaInstallActionBtn.addEventListener("click", triggerPwaInstall);
   if (DOM.headerInstallBtn) DOM.headerInstallBtn.addEventListener("click", triggerPwaInstall);
   if (DOM.navInstallBtn) DOM.navInstallBtn.addEventListener("click", triggerPwaInstall);
   if (DOM.pwaCloseBannerBtn) DOM.pwaCloseBannerBtn.addEventListener("click", () => DOM.pwaInstallBanner.classList.add("hidden"));
   if (DOM.closeIosInstallModalBtn) DOM.closeIosInstallModalBtn.addEventListener("click", () => DOM.iosInstallModal.classList.add("hidden"));
 
-  // Nút Dùng Thử Ngay Local
-  if (DOM.quickLocalBtn) DOM.quickLocalBtn.addEventListener("click", () => switchToLocalMode(false));
-  if (DOM.heroLocalBtn) DOM.heroLocalBtn.addEventListener("click", () => switchToLocalMode(false));
+  // Auth Triggers
+  if (DOM.openOtpModalBtn) DOM.openOtpModalBtn.addEventListener("click", openOtpModal);
+  if (DOM.heroOtpBtn) DOM.heroOtpBtn.addEventListener("click", openOtpModal);
+  if (DOM.guestTrialBtn) DOM.guestTrialBtn.addEventListener("click", handleGuestLogin);
+  if (DOM.quickGuestFromModalBtn) DOM.quickGuestFromModalBtn.addEventListener("click", handleGuestLogin);
+  if (DOM.logoutBtn) DOM.logoutBtn.addEventListener("click", handleLogout);
 
-  // Modal Custom Firebase Config
-  if (DOM.openCustomConfigBtn) DOM.openCustomConfigBtn.addEventListener("click", () => DOM.customConfigModal.classList.remove("hidden"));
-  if (DOM.closeCustomConfigBtn) DOM.closeCustomConfigBtn.addEventListener("click", () => DOM.customConfigModal.classList.add("hidden"));
-  if (DOM.cancelCustomConfigBtn) DOM.cancelCustomConfigBtn.addEventListener("click", () => DOM.customConfigModal.classList.add("hidden"));
-  if (DOM.customConfigForm) DOM.customConfigForm.addEventListener("submit", handleSaveCustomConfig);
-  if (DOM.resetConfigBtn) DOM.resetConfigBtn.addEventListener("click", handleResetConfig);
+  // OTP Modal Triggers
+  if (DOM.closeOtpModalBtn) DOM.closeOtpModalBtn.addEventListener("click", closeOtpModal);
+  if (DOM.otpModalBackdrop) DOM.otpModalBackdrop.addEventListener("click", closeOtpModal);
+  if (DOM.sendOtpForm) DOM.sendOtpForm.addEventListener("submit", handleSendOtp);
+  if (DOM.verifyOtpBtn) DOM.verifyOtpBtn.addEventListener("click", handleVerifyOtp);
+  if (DOM.changeEmailBtn) {
+    DOM.changeEmailBtn.addEventListener("click", () => {
+      DOM.otpStepVerify.classList.add("hidden");
+      DOM.otpStepEmail.classList.remove("hidden");
+      DOM.gmailInput.focus();
+    });
+  }
+  if (DOM.resendOtpBtn) {
+    DOM.resendOtpBtn.addEventListener("click", () => {
+      if (pendingOtp.email) {
+        DOM.gmailInput.value = pendingOtp.email;
+        DOM.sendOtpForm.dispatchEvent(new Event("submit"));
+      }
+    });
+  }
 
-  // Mobile Bottom Nav Triggers
+  // Mobile Bottom Navigation
   if (DOM.mobileAddFabBtn) DOM.mobileAddFabBtn.addEventListener("click", () => openAddTransactionModal());
   if (DOM.navOverviewBtn) {
     DOM.navOverviewBtn.addEventListener("click", () => {
@@ -1152,12 +1052,7 @@ function setupEventListeners() {
     });
   }
 
-  // Auth
-  if (DOM.loginBtn) DOM.loginBtn.addEventListener("click", handleGoogleLogin);
-  if (DOM.heroLoginBtn) DOM.heroLoginBtn.addEventListener("click", handleGoogleLogin);
-  if (DOM.logoutBtn) DOM.logoutBtn.addEventListener("click", handleLogout);
-
-  // Modal Thêm/Sửa Giao Dịch
+  // Modal Thêm/Sửa
   if (DOM.openAddModalBtn) DOM.openAddModalBtn.addEventListener("click", () => openAddTransactionModal());
   if (DOM.closeModalBtn) DOM.closeModalBtn.addEventListener("click", closeTransactionModal);
   if (DOM.cancelModalBtn) DOM.cancelModalBtn.addEventListener("click", closeTransactionModal);
@@ -1173,7 +1068,7 @@ function setupEventListeners() {
     }
   }
 
-  // Live currency formatting
+  // Live Currency Formatting
   DOM.amountInput.addEventListener("input", (e) => {
     const rawVal = parseCurrencyNumber(e.target.value);
     if (!isNaN(rawVal) && rawVal > 0) {
@@ -1224,18 +1119,12 @@ function setupEventListeners() {
 
   DOM.exportCsvBtn.addEventListener("click", exportTransactionsToCSV);
 
-  // Config Guide Modal
-  if (DOM.openConfigGuideBtn) DOM.openConfigGuideBtn.addEventListener("click", () => DOM.configGuideModal.classList.remove("hidden"));
-  if (DOM.closeConfigGuideBtn) DOM.closeConfigGuideBtn.addEventListener("click", () => DOM.configGuideModal.classList.add("hidden"));
-  if (DOM.closeConfigGuideOkBtn) DOM.closeConfigGuideOkBtn.addEventListener("click", () => DOM.configGuideModal.classList.add("hidden"));
-
-  // ESC key
+  // Phím ESC
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeTransactionModal();
       closeDeleteModal();
-      if (DOM.configGuideModal) DOM.configGuideModal.classList.add("hidden");
-      if (DOM.customConfigModal) DOM.customConfigModal.classList.add("hidden");
+      closeOtpModal();
       if (DOM.iosInstallModal) DOM.iosInstallModal.classList.add("hidden");
     }
   });
@@ -1356,6 +1245,10 @@ function updateAmountWords(amount) {
   }
 }
 
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function showToast(message, type = "info", duration = 4000) {
   const toast = document.createElement("div");
   toast.className = "toast-enter pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold max-w-xs sm:max-w-sm border transition-all";
@@ -1397,6 +1290,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Gắn các hàm thao tác giao dịch toàn cục cho các nút inline onclick
 window._expenseApp = {
   editTransaction: openEditTransactionModal,
   deleteTransaction: openDeleteModal
