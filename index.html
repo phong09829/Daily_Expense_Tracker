@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <meta name="application-name" content="ExpenseFlow">
-  <meta name="description" content="Web App quản lý chi tiêu cá nhân hằng ngày, đăng nhập OTP Gmail tức thì">
+  <meta name="description" content="Web App quản lý chi tiêu cá nhân hằng ngày, đăng nhập Gmail tức thì">
 
   <!-- Apple iOS PWA Meta Tags & Icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,9 +32,6 @@
   
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <!-- EmailJS SDK (Gửi Email trực tiếp từ trình duyệt) -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -118,19 +115,19 @@
           <span class="hidden sm:inline">Tải App</span>
         </button>
 
-        <!-- Nút Đăng nhập Gmail OTP -->
-        <button id="openOtpModalBtn" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/20 active:scale-95 transition-all group">
-          <i class="fa-solid fa-envelope-circle-check"></i>
-          <span>Đăng nhập Gmail OTP</span>
+        <!-- Nút Đăng nhập Gmail trên Header (khi chưa đăng nhập) -->
+        <button id="openLoginModalBtn" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/20 active:scale-95 transition-all">
+          <i class="fa-solid fa-envelope"></i>
+          <span>Đăng nhập Gmail</span>
         </button>
 
         <!-- User Profile Pill (Đã đăng nhập) -->
         <div id="userProfile" class="hidden items-center gap-2">
-          <div class="flex items-center gap-2 bg-slate-100/90 p-1 pr-2.5 rounded-full border border-slate-200">
+          <div class="flex items-center gap-2 bg-slate-100/90 p-1 pr-3 rounded-full border border-slate-200">
             <img id="userAvatar" src="" alt="Avatar" class="w-7 h-7 rounded-full border border-white shadow-xs object-cover">
             <div class="flex flex-col text-left">
-              <span id="userName" class="text-xs font-bold text-slate-800 truncate max-w-[120px]">...</span>
-              <span id="userEmailTag" class="text-[9px] text-slate-400 truncate max-w-[120px] font-mono leading-none"></span>
+              <span id="userName" class="text-xs font-bold text-slate-800 truncate max-w-[130px]">...</span>
+              <span id="userEmailTag" class="text-[9px] text-slate-400 truncate max-w-[130px] font-mono leading-none"></span>
             </div>
           </div>
           <button id="logoutBtn" title="Đăng xuất" class="p-2 w-8 h-8 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all flex items-center justify-center text-xs">
@@ -155,7 +152,7 @@
 
   <!-- ==================== GUEST VIEW (CHƯA ĐĂNG NHẬP) ==================== -->
   <div id="guestView" class="hidden flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-16">
-    <div class="max-w-2xl w-full text-center space-y-6 sm:space-y-8">
+    <div class="max-w-xl w-full text-center space-y-6 sm:space-y-8">
       
       <!-- App Icon Showcase -->
       <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-rose-500 via-indigo-600 to-purple-600 p-0.5 shadow-xl shadow-indigo-500/20 transform hover:scale-105 transition">
@@ -165,53 +162,68 @@
       <!-- Hero Title -->
       <div class="space-y-3">
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200/60 text-rose-700 text-xs font-bold">
-          <i class="fa-solid fa-shield-halved text-rose-500"></i>
-          <span>Xác thực an toàn bằng mã OTP gửi về Gmail</span>
+          <i class="fa-solid fa-envelope text-rose-500"></i>
+          <span>Đăng nhập trực tiếp bằng bất kỳ Gmail nào</span>
         </div>
         <h2 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
           Quản lý chi tiêu cá nhân<br class="hidden sm:inline">
           <span class="bg-gradient-to-r from-rose-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            bảo mật &amp; riêng tư tuyệt đối
+            nhanh chóng &amp; riêng tư
           </span>
         </h2>
-        <p class="text-slate-600 text-sm sm:text-base max-w-lg mx-auto leading-relaxed">
-          Mã xác thực OTP 6 số được gửi trực tiếp đến hộp thư Gmail của bạn. Mỗi tài khoản sở hữu sổ thu chi riêng biệt, hoàn toàn cô lập và bảo mật!
+        <p class="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
+          Chỉ cần nhập địa chỉ Gmail của bạn để vào sổ thu chi. Mỗi Gmail sở hữu dữ liệu riêng biệt hoàn toàn!
         </p>
       </div>
 
-      <!-- Login Action -->
-      <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-        <!-- Nút Đăng nhập OTP Gmail Duy Nhất -->
-        <button id="heroOtpBtn" class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-base shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">
-          <i class="fa-solid fa-key"></i>
-          <span>Đăng nhập bằng mã OTP gửi về Gmail</span>
-        </button>
+      <!-- Form Đăng nhập Gmail Trực tiếp ngay giữa màn hình -->
+      <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xl max-w-md mx-auto text-left">
+        <form id="heroLoginForm" class="space-y-4">
+          <div>
+            <label for="heroGmailInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Địa chỉ Gmail của bạn
+            </label>
+            <div class="relative">
+              <i class="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+              <input type="email" id="heroGmailInput" required placeholder="nhap_gmail_cua_ban@gmail.com"
+                class="w-full bg-slate-50 border border-slate-200 text-slate-900 pl-11 pr-4 py-3.5 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">
+              💡 Bất kỳ ai nhập Gmail nào cũng có thể truy cập sổ chi tiêu của riêng mình.
+            </p>
+          </div>
+
+          <button type="submit" id="heroLoginSubmitBtn" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-500/25 active:scale-95 transition flex items-center justify-center gap-2.5">
+            <i class="fa-solid fa-arrow-right-to-bracket text-base"></i>
+            <span>Đăng nhập vào sổ chi tiêu</span>
+          </button>
+        </form>
       </div>
 
       <!-- App Highlights -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-left">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
-            <i class="fa-solid fa-envelope-circle-check text-lg"></i>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-left">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-2.5">
+            <i class="fa-solid fa-bolt text-base"></i>
           </div>
-          <h4 class="font-bold text-slate-900 text-sm">Gửi OTP về Hòm thư</h4>
-          <p class="text-xs text-slate-500 mt-1">Mã xác thực gửi bí mật về Gmail, mở ứng dụng Gmail để lấy mã.</p>
+          <h4 class="font-bold text-slate-900 text-xs sm:text-sm">Vào ngay tức thì</h4>
+          <p class="text-[11px] text-slate-500 mt-0.5">Nhập Gmail là vào ngay, không cần kích hoạt phức tạp.</p>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
-            <i class="fa-solid fa-user-lock text-lg"></i>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2.5">
+            <i class="fa-solid fa-user-lock text-base"></i>
           </div>
-          <h4 class="font-bold text-slate-900 text-sm">Cô lập dữ liệu</h4>
-          <p class="text-xs text-slate-500 mt-1">Mỗi Gmail lưu trữ sổ thu chi riêng biệt, an toàn tuyệt đối.</p>
+          <h4 class="font-bold text-slate-900 text-xs sm:text-sm">Cô lập dữ liệu</h4>
+          <p class="text-[11px] text-slate-500 mt-0.5">Mỗi Gmail lưu sổ thu chi riêng, không lẫn lộn với người khác.</p>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
-            <i class="fa-solid fa-mobile-screen-button text-lg"></i>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2.5">
+            <i class="fa-solid fa-mobile-screen-button text-base"></i>
           </div>
-          <h4 class="font-bold text-slate-900 text-sm">Chuẩn App PWA</h4>
-          <p class="text-xs text-slate-500 mt-1">Cài trực tiếp ra màn hình chính điện thoại, dùng toàn màn hình mượt mà.</p>
+          <h4 class="font-bold text-slate-900 text-xs sm:text-sm">Chuẩn App PWA</h4>
+          <p class="text-[11px] text-slate-500 mt-0.5">Cài thẳng ra màn hình điện thoại, mở toàn màn hình mượt mà.</p>
         </div>
       </div>
 
@@ -422,145 +434,46 @@
     </div>
   </nav>
 
-  <!-- ==================== MODAL ĐĂNG NHẬP OTP GMAIL ==================== -->
-  <div id="gmailOtpModal" class="fixed inset-0 z-50 hidden">
-    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" id="otpModalBackdrop"></div>
+  <!-- ==================== MODAL ĐĂNG NHẬP GMAIL (KHI BẤM NÚT TRÊN HEADER) ==================== -->
+  <div id="loginModal" class="fixed inset-0 z-50 hidden">
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" id="loginModalBackdrop"></div>
     <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
       <div class="relative bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100">
         
         <!-- Nút Đóng Modal -->
-        <button id="closeOtpModalBtn" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-sm transition">
+        <button id="closeLoginModalBtn" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-sm transition">
           <i class="fa-solid fa-xmark"></i>
         </button>
 
-        <!-- BƯỚC 1: NHẬP ĐỊA CHỈ GMAIL -->
-        <div id="otpStepEmail" class="space-y-5">
+        <div class="space-y-5">
           <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl mx-auto shadow-xs">
             <i class="fa-solid fa-envelope-open-text"></i>
           </div>
 
           <div class="text-center space-y-1">
             <h3 class="text-xl font-extrabold text-slate-900">Đăng nhập tài khoản</h3>
-            <p class="text-xs text-slate-500">Nhập địa chỉ Gmail để nhận mã OTP gửi về hộp thư</p>
+            <p class="text-xs text-slate-500">Nhập địa chỉ Gmail của bạn để truy cập sổ chi tiêu</p>
           </div>
 
-          <form id="sendOtpForm" class="space-y-4">
+          <form id="modalLoginForm" class="space-y-4">
             <div>
-              <label for="gmailInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                Địa chỉ Gmail của bạn <span class="text-rose-500">*</span>
+              <label for="modalGmailInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Địa chỉ Gmail <span class="text-rose-500">*</span>
               </label>
               <div class="relative">
                 <i class="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                <input type="email" id="gmailInput" required placeholder="vidu@gmail.com"
-                  class="w-full bg-slate-50 border border-slate-200 text-slate-900 pl-11 pr-4 py-3 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+                <input type="email" id="modalGmailInput" required placeholder="vidu@gmail.com"
+                  class="w-full bg-slate-50 border border-slate-200 text-slate-900 pl-11 pr-4 py-3.5 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
               </div>
             </div>
 
-            <button type="submit" id="sendOtpBtn" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 active:scale-95 transition flex items-center justify-center gap-2">
-              <i class="fa-solid fa-paper-plane"></i>
-              <span>Gửi mã OTP về Gmail</span>
+            <button type="submit" id="modalLoginSubmitBtn" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 active:scale-95 transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i>
+              <span>Đăng nhập ngay</span>
             </button>
           </form>
-
-          <div class="text-right pt-2 border-t border-slate-100 text-xs">
-            <button id="openEmailConfigBtn" class="text-slate-400 hover:text-indigo-600 transition inline-flex items-center gap-1.5 font-medium" title="Cài đặt tài khoản gửi Email (EmailJS)">
-              <i class="fa-solid fa-gear text-xs"></i>
-              <span>Cài đặt cổng gửi Email (EmailJS)</span>
-            </button>
-          </div>
         </div>
 
-        <!-- BƯỚC 2: NHẬP MÃ OTP 6 SỐ -->
-        <div id="otpStepVerify" class="hidden space-y-5">
-          <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mx-auto shadow-xs">
-            <i class="fa-solid fa-shield-halved"></i>
-          </div>
-
-          <div class="text-center space-y-1">
-            <h3 class="text-xl font-extrabold text-slate-900">Xác thực mã OTP</h3>
-            <p class="text-xs text-slate-500">Mã xác thực bí mật 6 số đã được gửi tới:</p>
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full font-mono text-xs font-bold text-slate-800">
-              <span id="targetEmailDisplay">...</span>
-              <button id="changeEmailBtn" title="Đổi email" class="text-indigo-600 hover:underline text-[11px] font-sans">
-                (Đổi)
-              </button>
-            </div>
-            
-            <!-- Hộp nhắc nhở bảo mật mở Gmail -->
-            <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 text-left mt-2.5 flex items-start gap-2.5">
-              <i class="fa-solid fa-envelope-open-text text-amber-600 mt-0.5 text-base shrink-0"></i>
-              <div class="text-[11px] text-amber-900 leading-relaxed">
-                Vui lòng mở ứng dụng <strong>Gmail</strong> trên điện thoại hoặc máy tính của bạn, kiểm tra hộp thư đến (hoặc hòm thư <em>Spam / Thư rác</em>) để lấy mã OTP và nhập vào bên dưới.
-              </div>
-            </div>
-          </div>
-
-          <!-- 6 Ô Input Mã OTP -->
-          <div class="flex items-center justify-center gap-2 sm:gap-2.5 py-2">
-            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="0">
-            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="1">
-            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="2">
-            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="3">
-            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="4">
-            <input type="text" maxlength="1" inputmode="numeric" class="otp-box w-11 h-13 sm:w-12 sm:h-14 text-center text-2xl font-mono font-extrabold bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition" data-index="5">
-          </div>
-
-          <!-- Nút Xác nhận OTP -->
-          <button id="verifyOtpBtn" class="w-full py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 active:scale-95 transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-circle-check"></i>
-            <span>Xác nhận &amp; Đăng nhập</span>
-          </button>
-
-          <!-- Đếm ngược & Gửi lại mã -->
-          <div class="text-center text-xs text-slate-500">
-            <span id="countdownText">Gửi lại mã sau: <strong id="countdownSec" class="font-mono text-indigo-600">60</strong>s</span>
-            <button id="resendOtpBtn" class="hidden text-indigo-600 hover:underline font-bold">
-              Gửi lại mã OTP mới
-            </button>
-          </div>
-
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== MODAL CÀI ĐẶT EMAILJS (TÙY CHỌN) ==================== -->
-  <div id="emailConfigModal" class="fixed inset-0 z-50 hidden">
-    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
-      <div class="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div class="flex items-center gap-2 text-indigo-600 font-bold text-sm">
-            <i class="fa-solid fa-sliders"></i>
-            <span>Cấu hình EmailJS Service</span>
-          </div>
-          <button id="closeEmailConfigBtn" class="text-slate-400 hover:text-slate-600 p-1">
-            <i class="fa-solid fa-xmark text-base"></i>
-          </button>
-        </div>
-        <form id="emailConfigForm" class="mt-4 space-y-3 text-xs">
-          <p class="text-slate-600 leading-relaxed">
-            Kết nối tài khoản <a href="https://www.emailjs.com/" target="_blank" class="text-indigo-600 underline font-semibold">EmailJS</a> miễn phí để gửi mã OTP trực tiếp từ Gmail của bạn:
-          </p>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Public Key (User ID)</label>
-            <input type="text" id="cfgEmailPublicKey" placeholder="Ví dụ: aBCDeFGh12345" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-          </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Service ID</label>
-            <input type="text" id="cfgEmailServiceId" placeholder="service_xxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-          </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Template ID</label>
-            <input type="text" id="cfgEmailTemplateId" placeholder="template_xxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-          </div>
-          <p class="text-[11px] text-slate-400 italic">Template EmailJS cần có biến <code>{{to_email}}</code> và <code>{{otp_code}}</code>.</p>
-          <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-            <button type="button" id="cancelEmailConfigBtn" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold">Đóng</button>
-            <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20">Lưu cấu hình</button>
-          </div>
-        </form>
       </div>
     </div>
   </div>
@@ -720,7 +633,7 @@
   <!-- Toast Notification System -->
   <div id="toastContainer" class="fixed bottom-20 md:bottom-5 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-  <!-- Main Application Logic (Xác thực OTP gửi về Gmail, Bảo mật & Riêng tư) -->
+  <!-- Main Application Logic (Đăng nhập Gmail trực tiếp, Cô lập dữ liệu) -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
