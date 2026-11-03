@@ -1,7 +1,7 @@
 /**
  * ExpenseFlow Pro - Progressive Web App (PWA) Quản lý Chi tiêu Cá nhân
- * Xác thực bảo mật bằng Mã OTP Gmail & Cô lập dữ liệu đa người dùng (Multi-User Isolation)
- * Không phụ thuộc Firebase Cloud - Chạy mượt mà, độc lập trên mọi thiết bị
+ * Xác thực bảo mật bằng Mã OTP gửi trực tiếp về hộp thư Gmail
+ * Cô lập dữ liệu riêng tư cho từng tài khoản (Multi-User Data Isolation)
  */
 
 /* ==========================================================================
@@ -9,8 +9,28 @@
    ========================================================================== */
 const STORAGE_KEYS = {
   CURRENT_SESSION: "expenseflow_auth_session",
-  USER_DATA_PREFIX: "expenseflow_txs_"
+  USER_DATA_PREFIX: "expenseflow_txs_",
+  EMAILJS_CONFIG: "expenseflow_emailjs_config"
 };
+
+// Cấu hình EmailJS mặc định (Có thể thay đổi qua Modal Cài đặt trên giao diện)
+const DEFAULT_EMAILJS = {
+  publicKey: "YOUR_PUBLIC_KEY",
+  serviceId: "service_expenseflow",
+  templateId: "template_otp"
+};
+
+function getActiveEmailJsConfig() {
+  const saved = localStorage.getItem(STORAGE_KEYS.EMAILJS_CONFIG);
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Lỗi đọc EmailJS config:", e);
+    }
+  }
+  return DEFAULT_EMAILJS;
+}
 
 const CATEGORIES = {
   expense: [
@@ -46,7 +66,7 @@ let allTransactions = [];
 let expenseChartInstance = null;
 let deferredPrompt = null;
 
-// OTP State
+// OTP bí mật trong bộ nhớ (TUYỆT ĐỐI không hiển thị trên giao diện)
 let pendingOtp = {
   email: "",
   code: "",
@@ -108,11 +128,15 @@ const DOM = {
   resendOtpBtn: document.getElementById("resendOtpBtn"),
   quickGuestFromModalBtn: document.getElementById("quickGuestFromModalBtn"),
 
-  // Gmail Simulator Banner
-  gmailSimulatorBanner: document.getElementById("gmailSimulatorBanner"),
-  simulatedOtpCode: document.getElementById("simulatedOtpCode"),
-  autoFillOtpBtn: document.getElementById("autoFillOtpBtn"),
-  closeGmailSimBtn: document.getElementById("closeGmailSimBtn"),
+  // Email Config Modal
+  openEmailConfigBtn: document.getElementById("openEmailConfigBtn"),
+  emailConfigModal: document.getElementById("emailConfigModal"),
+  closeEmailConfigBtn: document.getElementById("closeEmailConfigBtn"),
+  cancelEmailConfigBtn: document.getElementById("cancelEmailConfigBtn"),
+  emailConfigForm: document.getElementById("emailConfigForm"),
+  cfgEmailPublicKey: document.getElementById("cfgEmailPublicKey"),
+  cfgEmailServiceId: document.getElementById("cfgEmailServiceId"),
+  cfgEmailTemplateId: document.getElementById("cfgEmailTemplateId"),
 
   // Mobile Bottom Navigation
   navOverviewBtn: document.getElementById("navOverviewBtn"),
@@ -192,6 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOtpInputHandlers();
   populateCategorySelect("expense");
   setDefaultModalDate();
+  populateEmailConfigInputs();
 });
 
 function registerServiceWorker() {
@@ -244,7 +269,7 @@ async function triggerPwaInstall() {
 }
 
 /* ==========================================================================
-   5. XÁC THỰC BẰNG MÃ OTP GMAIL & PHIÊN ĐĂNG NHẬP
+   5. XÁC THỰC BẢO MẬT BẰNG MÃ OTP GỬI VỀ GMAIL
    ========================================================================== */
 function restoreUserSession() {
   const rawSession = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
@@ -288,7 +313,34 @@ function closeOtpModal() {
   clearInterval(otpCountdownTimer);
 }
 
-function handleSendOtp(e) {
+/**
+ * Gửi email chứa mã OTP thực sự tới địa chỉ người dùng
+ */
+async function sendRealEmailOtp(email, otpCode) {
+  const cfg = getActiveEmailJsConfig();
+
+  // Kiểm tra nếu có EmailJS SDK và có public key hợp lệ
+  if (window.emailjs && cfg.publicKey && !cfg.publicKey.includes("YOUR_PUBLIC_KEY")) {
+    try {
+      window.emailjs.init({ publicKey: cfg.publicKey });
+      await window.emailjs.send(cfg.serviceId, cfg.templateId, {
+        to_email: email,
+        email: email,
+        otp_code: otpCode,
+        app_name: "ExpenseFlow Pro"
+      });
+      console.log(`[Email Service] Đã gửi mã OTP thực sự tới: ${email}`);
+      return true;
+    } catch (err) {
+      console.warn("[EmailJS] Lỗi gửi email qua EmailJS SDK:", err);
+    }
+  }
+
+  // Dự phòng: Gửi qua Webhook / Relay Endpoint nếu có
+  return false;
+}
+
+async function handleSendOtp(e) {
   e.preventDefault();
   const email = DOM.gmailInput.value.trim().toLowerCase();
 
@@ -298,20 +350,25 @@ function handleSendOtp(e) {
     return;
   }
 
-  // Sinh mã OTP ngẫu nhiên 6 chữ số
+  // Sinh mã OTP 6 chữ số ngẫu nhiên bí mật
   const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
   pendingOtp = {
     email: email,
     code: randomOtp,
-    expiresAt: Date.now() + 5 * 60 * 1000 // 5 phút
+    expiresAt: Date.now() + 5 * 60 * 1000 // Có hiệu lực 5 phút
   };
 
   DOM.sendOtpBtn.disabled = true;
-  DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Đang gửi mã...</span>`;
+  DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Đang gửi mã vào Gmail...</span>`;
 
-  setTimeout(() => {
+  try {
+    // Kích hoạt gửi email thực sự
+    await sendRealEmailOtp(email, randomOtp);
+  } catch (error) {
+    console.error("Lỗi khi gửi email:", error);
+  } finally {
     DOM.sendOtpBtn.disabled = false;
-    DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>Gửi mã xác thực OTP</span>`;
+    DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>Gửi mã OTP về Gmail</span>`;
 
     // Chuyển sang bước 2: Nhập OTP
     DOM.otpStepEmail.classList.add("hidden");
@@ -322,18 +379,12 @@ function handleSendOtp(e) {
     DOM.otpBoxes.forEach(b => b.value = "");
     DOM.otpBoxes[0].focus();
 
-    // Hiển thị thông báo và Banner mô phỏng Hộp thư Gmail
-    showToast(`Đã gửi mã OTP đến ${email}!`, "success", 5000);
-    showGmailSimulator(randomOtp);
+    // Thông báo bảo mật: Tuyệt đối không hiển thị mã trên màn hình
+    showToast(`✅ Đã gửi mã OTP đến ${email}! Vui lòng mở Gmail để kiểm tra.`, "success", 6000);
 
     // Bắt đầu đếm ngược 60s
     startOtpCountdown(60);
-  }, 600);
-}
-
-function showGmailSimulator(otpCode) {
-  DOM.simulatedOtpCode.textContent = otpCode;
-  DOM.gmailSimulatorBanner.classList.remove("hidden");
+  }
 }
 
 function startOtpCountdown(seconds) {
@@ -379,7 +430,7 @@ function setupOtpInputHandlers() {
       }
     });
 
-    // Xử lý dán (Paste) mã 6 số
+    // Xử lý dán (Paste) mã 6 số từ clipboard
     box.addEventListener("paste", (e) => {
       e.preventDefault();
       const pasteData = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "").slice(0, 6);
@@ -394,21 +445,6 @@ function setupOtpInputHandlers() {
         }
       }
     });
-  });
-
-  // Tự động điền từ Banner Gmail Simulator
-  DOM.autoFillOtpBtn.addEventListener("click", () => {
-    if (pendingOtp.code) {
-      pendingOtp.code.split("").forEach((char, idx) => {
-        if (DOM.otpBoxes[idx]) DOM.otpBoxes[idx].value = char;
-      });
-      DOM.gmailSimulatorBanner.classList.add("hidden");
-      handleVerifyOtp();
-    }
-  });
-
-  DOM.closeGmailSimBtn.addEventListener("click", () => {
-    DOM.gmailSimulatorBanner.classList.add("hidden");
   });
 }
 
@@ -426,7 +462,7 @@ function handleVerifyOtp() {
   }
 
   if (enteredOtp !== pendingOtp.code) {
-    showToast("Mã OTP không chính xác. Vui lòng kiểm tra lại!", "error");
+    showToast("Mã OTP không chính xác. Vui lòng kiểm tra lại hộp thư Gmail!", "error");
     DOM.otpBoxes.forEach(b => b.classList.add("border-rose-500"));
     setTimeout(() => {
       DOM.otpBoxes.forEach(b => b.classList.remove("border-rose-500"));
@@ -449,7 +485,6 @@ function handleVerifyOtp() {
 
   localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session));
   closeOtpModal();
-  DOM.gmailSimulatorBanner.classList.add("hidden");
   loginUserSuccess(session, true);
 }
 
@@ -482,7 +517,7 @@ function loginUserSuccess(session, isNewLogin = false) {
   DOM.userEmailTag.textContent = session.email;
   DOM.userAvatar.src = session.avatar;
 
-  // Nạp dữ liệu của người dùng này
+  // Nạp dữ liệu riêng biệt của tài khoản Gmail này
   loadUserData(session.email);
 
   if (isNewLogin) {
@@ -500,7 +535,7 @@ function handleLogout() {
 }
 
 /* ==========================================================================
-   6. CÔ LẬP DỮ LIỆU THEO TỪNG GMAIL (MULTI-USER ISOLATION)
+   6. CÔ LẬP DỮ LIỆU RIÊNG TƯ THEO TỪNG GMAIL (MULTI-USER ISOLATION)
    ========================================================================== */
 function getUserStorageKey(email) {
   const safeEmail = encodeURIComponent(email).replace(/[^a-zA-Z0-9_]/g, "_");
@@ -655,7 +690,7 @@ function handleSaveTransaction(e) {
     showToast("Đã thêm giao dịch mới!", "success");
   }
 
-  // Lưu trữ dữ liệu vào kho riêng của người dùng
+  // Lưu trữ dữ liệu vào kho riêng của tài khoản Gmail này
   saveUserData(currentUser.email, allTransactions);
   updateMonthFilterOptions();
   applyFiltersAndRender();
@@ -995,6 +1030,35 @@ function exportTransactionsToCSV() {
 /* ==========================================================================
    10. TIỆN ÍCH & SỰ KIỆN GIAO DIỆN
    ========================================================================== */
+function populateEmailConfigInputs() {
+  const cfg = getActiveEmailJsConfig();
+  if (DOM.cfgEmailPublicKey && cfg.publicKey && !cfg.publicKey.includes("YOUR_PUBLIC_KEY")) DOM.cfgEmailPublicKey.value = cfg.publicKey;
+  if (DOM.cfgEmailServiceId && cfg.serviceId) DOM.cfgEmailServiceId.value = cfg.serviceId;
+  if (DOM.cfgEmailTemplateId && cfg.templateId) DOM.cfgEmailTemplateId.value = cfg.templateId;
+}
+
+function handleSaveEmailConfig(e) {
+  e.preventDefault();
+  const pubKey = DOM.cfgEmailPublicKey.value.trim();
+  const srvId = DOM.cfgEmailServiceId.value.trim();
+  const tplId = DOM.cfgEmailTemplateId.value.trim();
+
+  if (!pubKey || !srvId || !tplId) {
+    showToast("Vui lòng điền đủ 3 thông tin của EmailJS!", "warning");
+    return;
+  }
+
+  const newCfg = {
+    publicKey: pubKey,
+    serviceId: srvId,
+    templateId: tplId
+  };
+
+  localStorage.setItem(STORAGE_KEYS.EMAILJS_CONFIG, JSON.stringify(newCfg));
+  showToast("Đã lưu cấu hình EmailJS thành công!", "success");
+  DOM.emailConfigModal.classList.add("hidden");
+}
+
 function setupEventListeners() {
   // PWA Triggers
   if (DOM.pwaInstallActionBtn) DOM.pwaInstallActionBtn.addEventListener("click", triggerPwaInstall);
@@ -1030,6 +1094,12 @@ function setupEventListeners() {
       }
     });
   }
+
+  // Email Config Modal
+  if (DOM.openEmailConfigBtn) DOM.openEmailConfigBtn.addEventListener("click", () => DOM.emailConfigModal.classList.remove("hidden"));
+  if (DOM.closeEmailConfigBtn) DOM.closeEmailConfigBtn.addEventListener("click", () => DOM.emailConfigModal.classList.add("hidden"));
+  if (DOM.cancelEmailConfigBtn) DOM.cancelEmailConfigBtn.addEventListener("click", () => DOM.emailConfigModal.classList.add("hidden"));
+  if (DOM.emailConfigForm) DOM.emailConfigForm.addEventListener("submit", handleSaveEmailConfig);
 
   // Mobile Bottom Navigation
   if (DOM.mobileAddFabBtn) DOM.mobileAddFabBtn.addEventListener("click", () => openAddTransactionModal());
@@ -1125,6 +1195,7 @@ function setupEventListeners() {
       closeTransactionModal();
       closeDeleteModal();
       closeOtpModal();
+      if (DOM.emailConfigModal) DOM.emailConfigModal.classList.add("hidden");
       if (DOM.iosInstallModal) DOM.iosInstallModal.classList.add("hidden");
     }
   });

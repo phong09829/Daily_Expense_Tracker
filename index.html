@@ -33,6 +33,9 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
+  <!-- EmailJS SDK (Gửi Email trực tiếp từ trình duyệt) -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -163,16 +166,16 @@
       <div class="space-y-3">
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200/60 text-rose-700 text-xs font-bold">
           <i class="fa-solid fa-shield-halved text-rose-500"></i>
-          <span>Xác thực an toàn bằng mã OTP Gmail</span>
+          <span>Xác thực an toàn bằng mã OTP gửi về Gmail</span>
         </div>
         <h2 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
           Quản lý chi tiêu cá nhân<br class="hidden sm:inline">
           <span class="bg-gradient-to-r from-rose-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            nhanh gọn &amp; tiện lợi
+            bảo mật &amp; riêng tư tuyệt đối
           </span>
         </h2>
         <p class="text-slate-600 text-sm sm:text-base max-w-lg mx-auto leading-relaxed">
-          Đăng nhập tức thì bằng địa chỉ Gmail của bạn thông qua mã xác thực OTP 6 số. Mỗi tài khoản Gmail sở hữu không gian ghi chép riêng biệt!
+          Mã xác thực OTP 6 số được gửi trực tiếp đến hộp thư Gmail của bạn. Mỗi tài khoản sở hữu sổ thu chi riêng biệt, hoàn toàn cô lập và bảo mật!
         </p>
       </div>
 
@@ -197,8 +200,8 @@
           <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
             <i class="fa-solid fa-envelope-circle-check text-lg"></i>
           </div>
-          <h4 class="font-bold text-slate-900 text-sm">Xác thực OTP Gmail</h4>
-          <p class="text-xs text-slate-500 mt-1">Đăng nhập nhanh với mã OTP 6 số, không cần mật khẩu phức tạp.</p>
+          <h4 class="font-bold text-slate-900 text-sm">Gửi OTP về Hòm thư</h4>
+          <p class="text-xs text-slate-500 mt-1">Mã xác thực gửi bí mật về Gmail, mở ứng dụng Gmail để lấy mã.</p>
         </div>
 
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -444,13 +447,13 @@
 
           <div class="text-center space-y-1">
             <h3 class="text-xl font-extrabold text-slate-900">Đăng nhập tài khoản</h3>
-            <p class="text-xs text-slate-500">Nhập địa chỉ Gmail để nhận mã xác thực OTP 6 số</p>
+            <p class="text-xs text-slate-500">Nhập địa chỉ Gmail để nhận mã OTP gửi về hộp thư</p>
           </div>
 
           <form id="sendOtpForm" class="space-y-4">
             <div>
               <label for="gmailInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                Địa chỉ Gmail <span class="text-rose-500">*</span>
+                Địa chỉ Gmail của bạn <span class="text-rose-500">*</span>
               </label>
               <div class="relative">
                 <i class="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
@@ -461,13 +464,17 @@
 
             <button type="submit" id="sendOtpBtn" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 active:scale-95 transition flex items-center justify-center gap-2">
               <i class="fa-solid fa-paper-plane"></i>
-              <span>Gửi mã xác thực OTP</span>
+              <span>Gửi mã OTP về Gmail</span>
             </button>
           </form>
 
-          <div class="text-center pt-2 border-t border-slate-100">
-            <button id="quickGuestFromModalBtn" class="text-xs font-bold text-slate-500 hover:text-indigo-600 transition">
-              Dùng thử nhanh không cần Gmail &rarr;
+          <div class="text-center pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <button id="quickGuestFromModalBtn" class="font-bold text-slate-500 hover:text-indigo-600 transition">
+              Dùng thử vai trò Khách &rarr;
+            </button>
+            <button id="openEmailConfigBtn" class="text-slate-400 hover:text-slate-600 transition flex items-center gap-1" title="Cài đặt tài khoản gửi Email riêng">
+              <i class="fa-solid fa-gear text-[11px]"></i>
+              <span>Cài đặt Email</span>
             </button>
           </div>
         </div>
@@ -480,12 +487,20 @@
 
           <div class="text-center space-y-1">
             <h3 class="text-xl font-extrabold text-slate-900">Xác thực mã OTP</h3>
-            <p class="text-xs text-slate-500">Mã 6 chữ số đã được gửi tới:</p>
+            <p class="text-xs text-slate-500">Mã xác thực bí mật 6 số đã được gửi tới:</p>
             <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full font-mono text-xs font-bold text-slate-800">
               <span id="targetEmailDisplay">...</span>
               <button id="changeEmailBtn" title="Đổi email" class="text-indigo-600 hover:underline text-[11px] font-sans">
                 (Đổi)
               </button>
+            </div>
+            
+            <!-- Hộp nhắc nhở bảo mật mở Gmail -->
+            <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 text-left mt-2.5 flex items-start gap-2.5">
+              <i class="fa-solid fa-envelope-open-text text-amber-600 mt-0.5 text-base shrink-0"></i>
+              <div class="text-[11px] text-amber-900 leading-relaxed">
+                Vui lòng mở ứng dụng <strong>Gmail</strong> trên điện thoại hoặc máy tính của bạn, kiểm tra hộp thư đến (hoặc hòm thư <em>Spam / Thư rác</em>) để lấy mã OTP và nhập vào bên dưới.
+              </div>
             </div>
           </div>
 
@@ -519,30 +534,43 @@
     </div>
   </div>
 
-  <!-- ==================== BANNER MÔ PHỎNG HỘP THƯ GMAIL (OTP NOTIFICATION) ==================== -->
-  <div id="gmailSimulatorBanner" class="hidden fixed top-20 right-4 left-4 sm:left-auto sm:w-96 z-50 bg-white border border-slate-200 p-4 rounded-2xl shadow-2xl animate-fade-in">
-    <div class="flex items-start justify-between gap-3">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm font-bold shrink-0">
-          <i class="fa-solid fa-envelope"></i>
+  <!-- ==================== MODAL CÀI ĐẶT EMAILJS (TÙY CHỌN) ==================== -->
+  <div id="emailConfigModal" class="fixed inset-0 z-50 hidden">
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
+    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
+      <div class="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2 text-indigo-600 font-bold text-sm">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Cấu hình EmailJS Service</span>
+          </div>
+          <button id="closeEmailConfigBtn" class="text-slate-400 hover:text-slate-600 p-1">
+            <i class="fa-solid fa-xmark text-base"></i>
+          </button>
         </div>
-        <div>
-          <span class="text-[11px] font-bold text-slate-800">Gmail Inbox (Mã OTP)</span>
-          <p class="text-[10px] text-slate-400">ExpenseFlow Auth Service</p>
-        </div>
+        <form id="emailConfigForm" class="mt-4 space-y-3 text-xs">
+          <p class="text-slate-600 leading-relaxed">
+            Kết nối tài khoản <a href="https://www.emailjs.com/" target="_blank" class="text-indigo-600 underline font-semibold">EmailJS</a> miễn phí để gửi mã OTP trực tiếp từ Gmail của bạn:
+          </p>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Public Key (User ID)</label>
+            <input type="text" id="cfgEmailPublicKey" placeholder="Ví dụ: aBCDeFGh12345" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Service ID</label>
+            <input type="text" id="cfgEmailServiceId" placeholder="service_xxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Template ID</label>
+            <input type="text" id="cfgEmailTemplateId" placeholder="template_xxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          </div>
+          <p class="text-[11px] text-slate-400 italic">Template EmailJS cần có biến <code>{{to_email}}</code> và <code>{{otp_code}}</code>.</p>
+          <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+            <button type="button" id="cancelEmailConfigBtn" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold">Đóng</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20">Lưu cấu hình</button>
+          </div>
+        </form>
       </div>
-      <button id="closeGmailSimBtn" class="text-slate-400 hover:text-slate-600 text-xs p-1">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-    <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-      <div>
-        <span class="text-[11px] text-slate-500">Mã xác nhận:</span>
-        <span id="simulatedOtpCode" class="ml-1.5 font-mono font-extrabold text-base text-rose-600 tracking-wider">------</span>
-      </div>
-      <button id="autoFillOtpBtn" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">
-        Tự động điền
-      </button>
     </div>
   </div>
 
@@ -688,7 +716,7 @@
           </div>
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[11px] shrink-0">3</span>
-            <p>Bấm <strong>Thêm (Add)</strong> ở góc trên bên phải. Ứng dụng sẽ xuất hiện trên màn hình chính như một App tải từ App Store!</p>
+            <p>Bấm <strong>Thêm</strong> ở góc trên bên phải. Ứng dụng sẽ xuất hiện trên màn hình chính như một App tải từ App Store!</p>
           </div>
         </div>
         <button id="closeIosInstallModalBtn" class="mt-5 w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold active:scale-95 transition">
@@ -701,7 +729,7 @@
   <!-- Toast Notification System -->
   <div id="toastContainer" class="fixed bottom-20 md:bottom-5 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-  <!-- Main Application Logic (Không còn Firebase, Đăng nhập Gmail OTP thuần) -->
+  <!-- Main Application Logic (Xác thực OTP gửi về Gmail, Bảo mật & Riêng tư) -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
