@@ -92,6 +92,25 @@
   animation: toastSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* OTP Box Focus & Styling */
+.hero-otp-box:focus,
+.modal-otp-box:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15) !important;
+  transform: translateY(-1px);
+}
+
+.otp-error {
+  border-color: #ef4444 !important;
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
 /* Đảm bảo canvas không bị tràn */
 #expenseCategoryChart {
   width: 100% !important;

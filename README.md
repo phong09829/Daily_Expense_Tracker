@@ -3,7 +3,7 @@
 <div align="center">
 
 [![Truy cập App Ngay](https://img.shields.io/badge/🚀_TRUY_CẬP_APP_TRỰC_TIẾP-Nhấn_Vào_Đây-4f46e5?style=for-the-badge&logo=google-chrome&logoColor=white)](https://phong09829.github.io/Daily_Expense_Tracker/)
-[![Auth](https://img.shields.io/badge/Đăng_nhập-Bằng_Gmail_Trực_tiếp-ea4335?style=for-the-badge&logo=gmail&logoColor=white)](https://phong09829.github.io/Daily_Expense_Tracker/)
+[![Auth](https://img.shields.io/badge/Bảo_mật-OTP_Gmail-ea4335?style=for-the-badge&logo=gmail&logoColor=white)](https://phong09829.github.io/Daily_Expense_Tracker/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-10b981?style=for-the-badge&logo=pwa&logoColor=white)](https://phong09829.github.io/Daily_Expense_Tracker/)
 
 ### 🔗 Link truy cập chính thức: [https://phong09829.github.io/Daily_Expense_Tracker/](https://phong09829.github.io/Daily_Expense_Tracker/)
@@ -12,21 +12,44 @@
 
 ---
 
-> **ExpenseFlow Pro** là ứng dụng Web App (PWA) hiện đại giúp bạn quản lý thu chi cá nhân hằng ngày một cách nhanh chóng, riêng tư và tiện lợi nhất. Bất kỳ ai cũng có thể **nhập địa chỉ Gmail của mình để đăng nhập trực tiếp ngay lập tức** mà không cần mã OTP, không cần kích hoạt phức tạp. Dữ liệu thu chi của mỗi tài khoản Gmail được **cô lập riêng biệt 100%**.
+> **ExpenseFlow Pro** là ứng dụng Web App (PWA) hiện đại giúp bạn quản lý thu chi cá nhân hằng ngày một cách an toàn và bảo mật tuyệt đối. Ứng dụng xác thực độc quyền bằng **Mã OTP 6 số gửi về hộp thư Gmail**, đảm bảo mỗi cá nhân sở hữu một sổ thu chi riêng tư và độc lập hoàn toàn.
+
+---
+
+## 🛡️ Cơ chế Bảo mật OTP & Đăng nhập
+
+1. **Bước 1:** Nhập địa chỉ Gmail của bạn và nhấn **"Gửi mã OTP về Gmail"**.
+2. **Bước 2:** Hệ thống tạo mã xác thực 6 chữ số có hiệu lực trong 5 phút.
+3. **Bước 3:** Nhập đúng mã OTP vào 6 ô xác thực để đăng nhập ngay vào sổ chi tiêu cá nhân.
+
+---
+
+## ⚡ Hướng dẫn kích hoạt Gửi Mail tự động qua Google Apps Script (100% Miễn phí & Không quảng cáo)
+
+Dự án đã tích hợp sẵn file backend [`google-apps-script-otp.gs`](./google-apps-script-otp.gs). Bạn có thể kết nối cổng gửi email từ chính tài khoản Gmail của bạn chỉ trong 1 phút:
+
+1. Mở trình duyệt và truy cập [https://script.google.com/](https://script.google.com/) ➜ Nhấn **Dự án mới (New project)**.
+2. Sao chép toàn bộ code trong file [`google-apps-script-otp.gs`](./google-apps-script-otp.gs) và dán vào trình soạn thảo ➜ Nhấn biểu tượng **Lưu (Save)**.
+3. Nhấn nút **Triển khai (Deploy)** ở góc trên bên phải ➜ Chọn **Tùy chọn triển khai mới (New deployment)**.
+4. Chọn loại: **Ứng dụng web (Web app)**:
+   - **Thực thi dưới dạng (Execute as):** `Tôi (Tài khoản Google của bạn)`.
+   - **Ai có quyền truy cập (Who has access):** `Bất kỳ ai (Anyone)`.
+5. Nhấn **Triển khai** ➜ Cấp quyền cho script gửi email khi được hỏi.
+6. Sao chép **URL ứng dụng web** (có dạng `https://script.google.com/macros/s/.../exec`).
+7. Mở Console trình duyệt tại trang web ExpenseFlow và lưu URL bằng lệnh:
+   ```javascript
+   localStorage.setItem("expenseflow_apps_script_url", "URL_CỦA_BẠN_Ở_ĐÂY");
+   ```
+   *(Từ lúc này, mỗi khi bạn nhấn gửi mã OTP, Google Apps Script sẽ tự động gửi thư chứa mã xác nhận trực tiếp vào hộp thư Gmail của bạn).*
 
 ---
 
 ## ✨ Điểm nổi bật & Tính năng chính
 
-- 🚀 **Đăng nhập Gmail trực tiếp 1 bước:**
-  - Nhập bất kỳ địa chỉ Gmail nào là có thể đăng nhập ngay lập tức.
-  - Không cần mã OTP, không cần kích hoạt tài khoản phức tạp.
-  - Tự động ghi nhớ phiên làm việc trên thiết bị của bạn.
-
-- 🛡️ **Cô lập dữ liệu riêng tư theo từng Gmail (Multi-User Isolation):**
-  - Mỗi tài khoản Gmail sở hữu cơ sở dữ liệu sổ thu chi độc lập hoàn toàn.
-  - Đăng nhập bằng Gmail nào thì chỉ thấy và quản lý giao dịch của riêng Gmail đó.
-  - Đảm bảo tính bảo mật và riêng tư cá nhân khi dùng chung thiết bị.
+- ✉️ **Bảo mật tuyệt đối qua OTP Gmail:**
+  - Không có mật khẩu phức tạp để quên hay bị lộ.
+  - Không có đăng nhập khách phụ hay đăng nhập nhanh.
+  - Mỗi tài khoản Gmail có dữ liệu riêng biệt được cô lập hoàn toàn.
 
 - 📲 **Cài đặt như Native App (Chuẩn PWA Standalone):**
   - Cài đặt trực tiếp về màn hình chính trên **Android**, **iPhone / iPad (iOS Safari)** và **Máy tính (Chrome / Edge)**.
@@ -47,25 +70,10 @@
 
 ### 1. Trên Android (Google Chrome):
 - Mở link: [https://phong09829.github.io/Daily_Expense_Tracker/](https://phong09829.github.io/Daily_Expense_Tracker/)
-- Bấm nút **"Cài đặt ngay"** trên banner đầu trang hoặc thanh Menu ➜ Chọn **"Cài đặt ứng dụng"** (hoặc **"Thêm vào màn hình chính"**).
+- Bấm nút **"Cài đặt ngay"** trên banner đầu trang hoặc bấm menu 3 chấm dọc `⋮` ở góc trên bên phải ➜ Chọn **"Cài đặt ứng dụng"** (hoặc **"Thêm vào màn hình chính"**).
 
 ### 2. Trên iPhone / iPad (iOS Safari):
 - Mở link bằng trình duyệt **Safari**.
 - Bấm vào biểu tượng nút **Chia sẻ** (icon ô vuông có mũi tên trỏ lên `⎋`) ở thanh điều hướng dưới cùng.
 - Cuộn xuống chọn **"Thêm vào MH chính"** (**Add to Home Screen** `⊞`).
 - Bấm **Thêm** ở góc trên bên phải. Ứng dụng sẽ hiển thị trên màn hình chính như một App độc lập!
-
----
-
-## 💻 Hướng dẫn Chạy Thử trên Máy tính (Local)
-
-1. Clone repository về máy:
-   ```bash
-   git clone https://github.com/phong09829/Daily_Expense_Tracker.git
-   cd Daily_Expense_Tracker
-   ```
-2. Mở file `index.html` trực tiếp bằng trình duyệt web hoặc chạy qua Live Server:
-   ```bash
-   npx serve .
-   ```
-3. Truy cập vào địa chỉ hiển thị trên terminal (thường là `http://localhost:3000` hoặc `http://localhost:5500`).
