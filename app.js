@@ -10,7 +10,7 @@
 const STORAGE_KEYS = {
   CURRENT_SESSION: "expenseflow_auth_session",
   USER_DATA_PREFIX: "expenseflow_txs_",
-  PIN_PREFIX: "expenseflow_pin_"
+  PIN_PREFIX: "expenseflow_pin_v3_"
 };
 
 const CATEGORIES = {
@@ -99,10 +99,13 @@ const DOM = {
   heroPinSubtitle: document.getElementById("heroPinSubtitle"),
   heroTargetEmailDisplay: document.getElementById("heroTargetEmailDisplay"),
   heroChangeEmailBtn: document.getElementById("heroChangeEmailBtn"),
+  heroPinInputWrapper: document.getElementById("heroPinInputWrapper"),
+  heroPinRealInput: document.getElementById("heroPinRealInput"),
   heroPinBoxes: document.querySelectorAll(".hero-pin-box"),
   heroTogglePinVisibilityBtn: document.getElementById("heroTogglePinVisibilityBtn"),
   heroPinEyeIcon: document.getElementById("heroPinEyeIcon"),
   heroPinEyeText: document.getElementById("heroPinEyeText"),
+  heroResetPinBtn: document.getElementById("heroResetPinBtn"),
   heroVerifyPinBtn: document.getElementById("heroVerifyPinBtn"),
   heroVerifyPinBtnText: document.getElementById("heroVerifyPinBtnText"),
 
@@ -119,10 +122,13 @@ const DOM = {
   modalPinSubtitle: document.getElementById("modalPinSubtitle"),
   modalTargetEmailDisplay: document.getElementById("modalTargetEmailDisplay"),
   modalChangeEmailBtn: document.getElementById("modalChangeEmailBtn"),
+  modalPinInputWrapper: document.getElementById("modalPinInputWrapper"),
+  modalPinRealInput: document.getElementById("modalPinRealInput"),
   modalPinBoxes: document.querySelectorAll(".modal-pin-box"),
   modalTogglePinVisibilityBtn: document.getElementById("modalTogglePinVisibilityBtn"),
   modalPinEyeIcon: document.getElementById("modalPinEyeIcon"),
   modalPinEyeText: document.getElementById("modalPinEyeText"),
+  modalResetPinBtn: document.getElementById("modalResetPinBtn"),
   modalVerifyPinBtn: document.getElementById("modalVerifyPinBtn"),
   modalVerifyPinBtnText: document.getElementById("modalVerifyPinBtnText"),
 
@@ -190,6 +196,9 @@ const DOM = {
    4. KHỞI CHẠY ỨNG DỤNG
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
+  // 0. Reset toàn bộ mã PIN cũ của tất cả tài khoản theo yêu cầu
+  resetAllExistingPins();
+
   // 1. Đăng ký Service Worker (PWA)
   registerServiceWorker();
 
@@ -325,18 +334,35 @@ function showGuestView() {
   resetPinFlow();
 }
 
+function resetAllExistingPins() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("expenseflow_pin_") || k.startsWith("expenseflow_otp_"))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Lỗi reset mã PIN cũ:", e);
+  }
+}
+
 function resetPinFlow() {
   // Hero
   if (DOM.heroPinStepEmail) DOM.heroPinStepEmail.classList.remove("hidden");
   if (DOM.heroPinStepVerify) DOM.heroPinStepVerify.classList.add("hidden");
-  if (DOM.heroPinBoxes) DOM.heroPinBoxes.forEach(b => b.value = "");
+  if (DOM.heroPinRealInput) DOM.heroPinRealInput.value = "";
   setPinVisibility("hero", false);
+  syncPinDisplay("hero");
 
   // Modal
   if (DOM.modalPinStepEmail) DOM.modalPinStepEmail.classList.remove("hidden");
   if (DOM.modalPinStepVerify) DOM.modalPinStepVerify.classList.add("hidden");
-  if (DOM.modalPinBoxes) DOM.modalPinBoxes.forEach(b => b.value = "");
+  if (DOM.modalPinRealInput) DOM.modalPinRealInput.value = "";
   setPinVisibility("modal", false);
+  syncPinDisplay("modal");
 
   pendingAuth.email = "";
   pendingAuth.isNewAccount = false;
@@ -387,8 +413,11 @@ function handleEmailSubmit(emailInput, scope) {
       DOM.heroVerifyPinBtnText.textContent = "Mở khóa sổ chi tiêu";
     }
 
-    DOM.heroPinBoxes.forEach(b => b.value = "");
-    DOM.heroPinBoxes[0].focus();
+    if (DOM.heroPinRealInput) {
+      DOM.heroPinRealInput.value = "";
+      syncPinDisplay("hero");
+      setTimeout(() => DOM.heroPinRealInput.focus(), 100);
+    }
   } else {
     DOM.modalPinStepEmail.classList.add("hidden");
     DOM.modalPinStepVerify.classList.remove("hidden");
@@ -405,148 +434,94 @@ function handleEmailSubmit(emailInput, scope) {
       DOM.modalVerifyPinBtnText.textContent = "Mở khóa sổ chi tiêu";
     }
 
-    DOM.modalPinBoxes.forEach(b => b.value = "");
-    DOM.modalPinBoxes[0].focus();
+    if (DOM.modalPinRealInput) {
+      DOM.modalPinRealInput.value = "";
+      syncPinDisplay("modal");
+      setTimeout(() => DOM.modalPinRealInput.focus(), 100);
+    }
   }
 }
 
 /**
- * Cài đặt xử lý gõ 6 ô PIN (chống nhảy số, tự động chuyển ô mượt mà, hỗ trợ mobile & desktop)
+ * Đồng bộ giá trị từ input ẩn sang 6 ô hiển thị trực quan (Single Input Pattern)
+ * Ngăn chặn 100% lỗi nhảy số, lỗi thêm số hoặc nhảy cóc ô
+ */
+function syncPinDisplay(scope) {
+  const realInput = scope === "hero" ? DOM.heroPinRealInput : DOM.modalPinRealInput;
+  const boxes = scope === "hero" ? DOM.heroPinBoxes : DOM.modalPinBoxes;
+  if (!realInput || !boxes || boxes.length === 0) return;
+
+  const isVisible = scope === "hero" ? pendingAuth.isHeroPinVisible : pendingAuth.isModalPinVisible;
+  const val = realInput.value.replace(/\D/g, "").slice(0, 6);
+  realInput.value = val;
+
+  const isInputFocused = document.activeElement === realInput;
+  const activeIdx = Math.min(val.length, boxes.length - 1);
+
+  boxes.forEach((box, i) => {
+    box.classList.remove("pin-box-active", "pin-box-filled", "pin-error");
+    if (i < val.length) {
+      box.textContent = isVisible ? val[i] : "●";
+      box.classList.add("pin-box-filled");
+    } else {
+      box.textContent = "";
+      if (i === activeIdx && isInputFocused) {
+        box.classList.add("pin-box-active");
+      }
+    }
+  });
+
+  // Tự động kiểm tra xác thực khi nhập đủ 6 chữ số
+  if (val.length === 6) {
+    setTimeout(() => {
+      if (realInput.value.length === 6) {
+        handleVerifyPin(scope);
+      }
+    }, 120);
+  }
+}
+
+/**
+ * Cài đặt xử lý gõ 6 ô PIN (chống nhảy số tuyệt đối qua Single Real Input)
  */
 function setupPinInputHandlers() {
-  const attachHandlers = (boxes, verifyFn) => {
-    boxes.forEach((box, index) => {
-      // 1. Tự động chọn (bôi đen) nội dung khi click hoặc focus để thay đổi số không bị kẹt hay nhảy số
-      box.addEventListener("focus", () => {
-        box.select();
-      });
-      box.addEventListener("click", () => {
-        box.select();
-      });
-
-      // 2. Xử lý sự kiện nhập số (input)
-      box.addEventListener("input", (e) => {
-        const raw = box.value.replace(/\D/g, "");
-
-        if (!raw) {
-          box.value = "";
-          return;
-        }
-
-        if (raw.length === 1) {
-          box.value = raw;
-          // Chuyển sang ô kế tiếp mượt mà
-          if (index < boxes.length - 1) {
-            boxes[index + 1].focus();
-            boxes[index + 1].select();
-          }
-        } else if (raw.length === 2) {
-          // Trường hợp gõ đè lên số có sẵn: lấy chữ số mới nhất vừa nhập
-          const newDigit = raw.slice(-1);
-          box.value = newDigit;
-          if (index < boxes.length - 1) {
-            boxes[index + 1].focus();
-            boxes[index + 1].select();
-          }
-        } else {
-          // Trường hợp gõ nhanh hoặc autofill nhiều số cùng lúc: phân bổ lần lượt vào các ô
-          const startIdx = (raw.length >= 6 && index > 0) ? 0 : index;
-          const chars = raw.slice(0, 6).split("");
-          chars.forEach((c, i) => {
-            if (startIdx + i < boxes.length) {
-              boxes[startIdx + i].value = c;
-            }
-          });
-          const nextIndex = Math.min(startIdx + chars.length, boxes.length - 1);
-          boxes[nextIndex].focus();
-          boxes[nextIndex].select();
-        }
-
-        // Tự động kiểm tra khi đủ 6 chữ số (với timeout ngắn để UI kịp vẽ số cuối cùng)
-        const fullCode = Array.from(boxes).map(b => b.value).join("");
-        if (fullCode.length === 6) {
-          setTimeout(() => {
-            const currentFull = Array.from(boxes).map(b => b.value).join("");
-            if (currentFull.length === 6) {
-              verifyFn();
-            }
-          }, 80);
-        }
-      });
-
-      // 3. Xử lý phím điều hướng & Backspace (Desktop & Android/iOS)
-      box.addEventListener("keydown", (e) => {
-        // Backspace
-        if (e.key === "Backspace" || e.keyCode === 8) {
-          if (box.value) {
-            box.value = "";
-            e.preventDefault();
-          } else if (index > 0) {
-            boxes[index - 1].focus();
-            boxes[index - 1].value = "";
-            e.preventDefault();
-          }
-          return;
-        }
-
-        // Mũi tên trái / phải
-        if (e.key === "ArrowLeft" && index > 0) {
-          boxes[index - 1].focus();
-          boxes[index - 1].select();
-          e.preventDefault();
-          return;
-        }
-        if (e.key === "ArrowRight" && index < boxes.length - 1) {
-          boxes[index + 1].focus();
-          boxes[index + 1].select();
-          e.preventDefault();
-          return;
-        }
-
-        // Phím Delete
-        if (e.key === "Delete" || e.keyCode === 46) {
-          box.value = "";
-          e.preventDefault();
-          return;
-        }
-
-        // Nếu bấm phím số khi ô đang có giá trị: bôi đen để thay thế ngay lập tức
-        if (/^[0-9]$/.test(e.key)) {
-          box.select();
-        }
-      });
-
-      // 4. Hỗ trợ Backspace trên bàn phím ảo Android (khi keydown không bắt được Backspace)
-      box.addEventListener("beforeinput", (e) => {
-        if (e.inputType === "deleteContentBackward") {
-          if (!box.value && index > 0) {
-            boxes[index - 1].focus();
-            boxes[index - 1].value = "";
-          }
-        }
-      });
-
-      // 5. Xử lý dán (Paste) mã từ clipboard
-      box.addEventListener("paste", (e) => {
+  // Hero PIN
+  if (DOM.heroPinRealInput) {
+    DOM.heroPinRealInput.addEventListener("input", () => syncPinDisplay("hero"));
+    DOM.heroPinRealInput.addEventListener("focus", () => syncPinDisplay("hero"));
+    DOM.heroPinRealInput.addEventListener("blur", () => syncPinDisplay("hero"));
+    DOM.heroPinRealInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
         e.preventDefault();
-        const pasteData = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "").slice(0, 6);
-        if (pasteData) {
-          pasteData.split("").forEach((char, idx) => {
-            if (boxes[idx]) boxes[idx].value = char;
-          });
-          const nextIndex = Math.min(pasteData.length, boxes.length - 1);
-          boxes[nextIndex].focus();
-          boxes[nextIndex].select();
-          if (pasteData.length === 6) {
-            setTimeout(verifyFn, 80);
-          }
-        }
-      });
+        handleVerifyPin("hero");
+      }
     });
-  };
+  }
+  if (DOM.heroPinInputWrapper && DOM.heroPinRealInput) {
+    DOM.heroPinInputWrapper.addEventListener("click", () => {
+      DOM.heroPinRealInput.focus();
+      syncPinDisplay("hero");
+    });
+  }
 
-  attachHandlers(DOM.heroPinBoxes, () => handleVerifyPin("hero"));
-  attachHandlers(DOM.modalPinBoxes, () => handleVerifyPin("modal"));
+  // Modal PIN
+  if (DOM.modalPinRealInput) {
+    DOM.modalPinRealInput.addEventListener("input", () => syncPinDisplay("modal"));
+    DOM.modalPinRealInput.addEventListener("focus", () => syncPinDisplay("modal"));
+    DOM.modalPinRealInput.addEventListener("blur", () => syncPinDisplay("modal"));
+    DOM.modalPinRealInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleVerifyPin("modal");
+      }
+    });
+  }
+  if (DOM.modalPinInputWrapper && DOM.modalPinRealInput) {
+    DOM.modalPinInputWrapper.addEventListener("click", () => {
+      DOM.modalPinRealInput.focus();
+      syncPinDisplay("modal");
+    });
+  }
 }
 
 /**
@@ -555,27 +530,57 @@ function setupPinInputHandlers() {
 function setPinVisibility(scope, isVisible) {
   if (scope === "hero") {
     pendingAuth.isHeroPinVisible = isVisible;
-    if (DOM.heroPinBoxes) {
-      DOM.heroPinBoxes.forEach(b => b.type = isVisible ? "text" : "password");
-    }
     if (DOM.heroPinEyeIcon) DOM.heroPinEyeIcon.className = isVisible ? "fa-regular fa-eye-slash text-sm" : "fa-regular fa-eye text-sm";
     if (DOM.heroPinEyeText) DOM.heroPinEyeText.textContent = isVisible ? "Ẩn mã PIN" : "Hiện mã PIN";
+    syncPinDisplay("hero");
   } else {
     pendingAuth.isModalPinVisible = isVisible;
-    if (DOM.modalPinBoxes) {
-      DOM.modalPinBoxes.forEach(b => b.type = isVisible ? "text" : "password");
-    }
     if (DOM.modalPinEyeIcon) DOM.modalPinEyeIcon.className = isVisible ? "fa-regular fa-eye-slash text-sm" : "fa-regular fa-eye text-sm";
     if (DOM.modalPinEyeText) DOM.modalPinEyeText.textContent = isVisible ? "Ẩn mã PIN" : "Hiện mã PIN";
+    syncPinDisplay("modal");
   }
+}
+
+/**
+ * Đặt lại (Reset) Mã PIN cho tài khoản hiện tại
+ */
+function handleResetPin(scope) {
+  const email = pendingAuth.email;
+  if (!email) {
+    showToast("Vui lòng nhập email trước!", "warning");
+    return;
+  }
+
+  localStorage.removeItem(getPinStorageKey(email));
+  pendingAuth.isNewAccount = true;
+
+  const realInput = scope === "hero" ? DOM.heroPinRealInput : DOM.modalPinRealInput;
+  if (realInput) {
+    realInput.value = "";
+    syncPinDisplay(scope);
+    setTimeout(() => realInput.focus(), 60);
+  }
+
+  if (scope === "hero") {
+    DOM.heroPinTitle.textContent = "Thiết lập Mã PIN mới";
+    DOM.heroPinSubtitle.innerHTML = `Đã reset: Nhập <b>Mã PIN 6 số mới</b> để bảo vệ sổ chi tiêu của:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
+    DOM.heroVerifyPinBtnText.textContent = "Tạo Mã PIN & Vào sổ chi tiêu";
+  } else {
+    DOM.modalPinTitle.textContent = "Thiết lập Mã PIN mới";
+    DOM.modalPinSubtitle.innerHTML = `Đã reset: Nhập <b>Mã PIN 6 số mới</b> để bảo vệ sổ chi tiêu của:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
+    DOM.modalVerifyPinBtnText.textContent = "Tạo Mã PIN & Vào sổ chi tiêu";
+  }
+
+  showToast(`🔄 Đã reset mã PIN cho ${email}! Hãy nhập 6 số mới bất kỳ để tạo lại mã.`, "info", 5000);
 }
 
 /**
  * Xử lý Bước 2: Xác thực Mã PIN hoặc Lưu Mã PIN mới
  */
 async function handleVerifyPin(scope) {
+  const realInput = scope === "hero" ? DOM.heroPinRealInput : DOM.modalPinRealInput;
   const boxes = scope === "hero" ? DOM.heroPinBoxes : DOM.modalPinBoxes;
-  const enteredPin = Array.from(boxes).map(b => b.value).join("");
+  const enteredPin = (realInput ? realInput.value : "").replace(/\D/g, "").slice(0, 6);
   const email = pendingAuth.email;
 
   if (!email) {
@@ -585,11 +590,12 @@ async function handleVerifyPin(scope) {
   }
 
   if (enteredPin.length < 6) {
-    showToast("Vui lòng điền đủ 6 chữ số Mã PIN!", "warning");
+    showToast("Vui lòng nhập đủ 6 chữ số Mã PIN!", "warning");
+    if (realInput) realInput.focus();
     return;
   }
 
-  // Trường hợp A: Tạo Mã PIN mới cho tài khoản lần đầu đăng nhập
+  // Trường hợp A: Tạo Mã PIN mới cho tài khoản lần đầu đăng nhập hoặc sau khi reset
   if (pendingAuth.isNewAccount) {
     await saveUserPin(email, enteredPin);
     showToast("🎉 Đã thiết lập Mã PIN 6 số thành công! Hãy ghi nhớ mã này.", "success", 5000);
@@ -601,15 +607,16 @@ async function handleVerifyPin(scope) {
   const isMatch = await verifyUserPin(email, enteredPin);
 
   if (!isMatch) {
-    showToast("❌ Mã PIN không chính xác! Vui lòng thử lại.", "error");
+    showToast("❌ Mã PIN không chính xác! Vui lòng thử lại hoặc bấm 'Đặt lại mã PIN'.", "error", 4500);
     boxes.forEach(b => b.classList.add("pin-error"));
     setTimeout(() => {
-      boxes.forEach(b => {
-        b.classList.remove("pin-error");
-        b.value = "";
-      });
-      boxes[0].focus();
-    }, 800);
+      boxes.forEach(b => b.classList.remove("pin-error"));
+      if (realInput) {
+        realInput.value = "";
+        syncPinDisplay(scope);
+        realInput.focus();
+      }
+    }, 700);
     return;
   }
 
@@ -1203,6 +1210,10 @@ function setupEventListeners() {
     });
   }
 
+  if (DOM.heroResetPinBtn) {
+    DOM.heroResetPinBtn.addEventListener("click", () => handleResetPin("hero"));
+  }
+
   if (DOM.heroVerifyPinBtn) {
     DOM.heroVerifyPinBtn.addEventListener("click", () => handleVerifyPin("hero"));
   }
@@ -1227,6 +1238,10 @@ function setupEventListeners() {
     DOM.modalTogglePinVisibilityBtn.addEventListener("click", () => {
       setPinVisibility("modal", !pendingAuth.isModalPinVisible);
     });
+  }
+
+  if (DOM.modalResetPinBtn) {
+    DOM.modalResetPinBtn.addEventListener("click", () => handleResetPin("modal"));
   }
 
   if (DOM.modalVerifyPinBtn) {

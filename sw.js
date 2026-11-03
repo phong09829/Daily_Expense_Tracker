@@ -3,7 +3,7 @@
  * Cung cấp khả năng hoạt động offline, mở App tức thì và hỗ trợ cài đặt Standalone App.
  */
 
-const CACHE_NAME = "expenseflow-pwa-v3";
+const CACHE_NAME = "expenseflow-pwa-v4";
 
 // Danh sách tài nguyên tĩnh cần cache sẵn để App tải tức thì
 const STATIC_ASSETS = [

@@ -92,14 +92,25 @@
   animation: toastSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-/* PIN Box Focus & Styling */
-.hero-pin-box:focus,
-.modal-pin-box:focus,
-.hero-otp-box:focus,
-.modal-otp-box:focus {
+/* PIN Box Focus & Styling (Single Input Overlay Pattern) */
+.hero-pin-box,
+.modal-pin-box {
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.pin-box-active {
   border-color: #4f46e5 !important;
+  background-color: #ffffff !important;
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15) !important;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+}
+
+.pin-box-filled {
+  border-color: #6366f1 !important;
+  background-color: #f8fafc !important;
+  color: #1e1b4b !important;
 }
 
 .pin-error,
