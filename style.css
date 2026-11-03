@@ -139,3 +139,24 @@
 .h-13 {
   height: 3.25rem;
 }
+
+/* On-Screen Keypad Buttons */
+.hero-keypad-btn,
+[data-pin-key],
+[data-modal-pin-key],
+[data-pin-action],
+[data-modal-pin-action] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s ease, background-color 0.15s ease;
+}
+
+.hero-keypad-btn:active,
+[data-pin-key]:active,
+[data-modal-pin-key]:active,
+[data-pin-action]:active,
+[data-modal-pin-action]:active {
+  transform: scale(0.94);
+}

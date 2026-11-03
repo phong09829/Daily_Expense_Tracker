@@ -217,28 +217,14 @@
             </p>
           </div>
 
-          <!-- Khối nhập PIN chuẩn 1 ô input bao bọc 6 visual boxes (chống tuyệt đối lỗi nhảy hoặc thêm số) -->
-          <div class="relative flex items-center justify-center cursor-pointer select-none py-1" id="heroPinInputWrapper">
-            <input 
-              type="tel" 
-              id="heroPinRealInput" 
-              maxlength="6" 
-              inputmode="numeric" 
-              pattern="[0-9]*" 
-              autocomplete="one-time-code" 
-              autocorrect="off" 
-              autocapitalize="off" 
-              spellcheck="false"
-              class="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer text-transparent caret-transparent"
-            >
-            <div class="flex items-center justify-center gap-2 sm:gap-2.5 pointer-events-none w-full" id="heroPinVisualBoxes">
-              <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-              <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-              <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-              <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-              <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-              <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-            </div>
+          <!-- 6 Ô hiển thị mã PIN (Chống nhảy số 100%) -->
+          <div class="flex items-center justify-center gap-2 sm:gap-2.5 py-1">
+            <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+            <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+            <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+            <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+            <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+            <div class="hero-pin-box w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
           </div>
 
           <!-- Nút ẩn hiện PIN & Nút Đặt lại PIN -->
@@ -251,6 +237,22 @@
               <i class="fa-solid fa-rotate-left"></i>
               <span>Đặt lại mã PIN</span>
             </button>
+          </div>
+
+          <!-- Bàn phím số an toàn chống nhảy số (On-screen Keypad) -->
+          <div class="grid grid-cols-3 gap-2 sm:gap-2.5 pt-2 max-w-xs mx-auto">
+            <button type="button" data-pin-key="1" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">1</button>
+            <button type="button" data-pin-key="2" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">2</button>
+            <button type="button" data-pin-key="3" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">3</button>
+            <button type="button" data-pin-key="4" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">4</button>
+            <button type="button" data-pin-key="5" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">5</button>
+            <button type="button" data-pin-key="6" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">6</button>
+            <button type="button" data-pin-key="7" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">7</button>
+            <button type="button" data-pin-key="8" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">8</button>
+            <button type="button" data-pin-key="9" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">9</button>
+            <button type="button" data-pin-action="clear" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-50 hover:bg-slate-200 text-slate-500 font-semibold text-xs transition">Xóa hết</button>
+            <button type="button" data-pin-key="0" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg sm:text-xl text-slate-800 transition">0</button>
+            <button type="button" data-pin-action="backspace" class="hero-keypad-btn py-3 sm:py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-rose-100 active:text-rose-600 text-slate-700 text-base transition flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
           </div>
 
           <button type="button" id="heroVerifyPinBtn" class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-600/25 active:scale-95 transition flex items-center justify-center gap-2">
@@ -550,28 +552,14 @@
               </p>
             </div>
 
-            <!-- Khối nhập PIN chuẩn 1 ô input bao bọc 6 visual boxes -->
-            <div class="relative flex items-center justify-center cursor-pointer select-none py-1" id="modalPinInputWrapper">
-              <input 
-                type="tel" 
-                id="modalPinRealInput" 
-                maxlength="6" 
-                inputmode="numeric" 
-                pattern="[0-9]*" 
-                autocomplete="one-time-code" 
-                autocorrect="off" 
-                autocapitalize="off" 
-                spellcheck="false"
-                class="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer text-transparent caret-transparent"
-              >
-              <div class="flex items-center justify-center gap-2 pointer-events-none w-full" id="modalPinVisualBoxes">
-                <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-                <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-                <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-                <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-                <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-                <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
-              </div>
+            <!-- 6 Ô hiển thị mã PIN trong modal -->
+            <div class="flex items-center justify-center gap-2 py-1">
+              <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+              <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+              <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+              <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+              <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
+              <div class="modal-pin-box w-10 h-12 flex items-center justify-center font-mono font-extrabold text-xl rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 transition"></div>
             </div>
 
             <!-- Nút ẩn hiện PIN trong modal & Nút Đặt lại PIN -->
@@ -584,6 +572,22 @@
                 <i class="fa-solid fa-rotate-left"></i>
                 <span>Đặt lại mã PIN</span>
               </button>
+            </div>
+
+            <!-- Bàn phím số an toàn chống nhảy số trong Modal -->
+            <div class="grid grid-cols-3 gap-2 pt-1 max-w-xs mx-auto">
+              <button type="button" data-modal-pin-key="1" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">1</button>
+              <button type="button" data-modal-pin-key="2" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">2</button>
+              <button type="button" data-modal-pin-key="3" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">3</button>
+              <button type="button" data-modal-pin-key="4" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">4</button>
+              <button type="button" data-modal-pin-key="5" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">5</button>
+              <button type="button" data-modal-pin-key="6" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">6</button>
+              <button type="button" data-modal-pin-key="7" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">7</button>
+              <button type="button" data-modal-pin-key="8" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">8</button>
+              <button type="button" data-modal-pin-key="9" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">9</button>
+              <button type="button" data-modal-pin-action="clear" class="py-2.5 rounded-xl bg-slate-50 hover:bg-slate-200 text-slate-500 font-semibold text-xs transition">Xóa hết</button>
+              <button type="button" data-modal-pin-key="0" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-indigo-100 active:text-indigo-600 font-bold text-lg text-slate-800 transition">0</button>
+              <button type="button" data-modal-pin-action="backspace" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-rose-100 active:text-rose-600 text-slate-700 text-base transition flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
             </div>
 
             <button type="button" id="modalVerifyPinBtn" class="w-full py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 active:scale-95 transition flex items-center justify-center gap-2">
