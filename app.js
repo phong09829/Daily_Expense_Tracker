@@ -184,6 +184,18 @@ const DOM = {
   cancelDeleteBtn: document.getElementById("cancelDeleteBtn"),
   confirmDeleteBtn: document.getElementById("confirmDeleteBtn"),
 
+  // Change PIN Modal
+  openChangePinModalBtn: document.getElementById("openChangePinModalBtn"),
+  changePinModal: document.getElementById("changePinModal"),
+  changePinModalBackdrop: document.getElementById("changePinModalBackdrop"),
+  closeChangePinModalBtn: document.getElementById("closeChangePinModalBtn"),
+  cancelChangePinBtn: document.getElementById("cancelChangePinBtn"),
+  changePinForm: document.getElementById("changePinForm"),
+  currentPinInput: document.getElementById("currentPinInput"),
+  newPinInput: document.getElementById("newPinInput"),
+  confirmNewPinInput: document.getElementById("confirmNewPinInput"),
+  saveChangePinBtn: document.getElementById("saveChangePinBtn"),
+
   // Toast Container
   toastContainer: document.getElementById("toastContainer")
 };
@@ -192,9 +204,6 @@ const DOM = {
    4. KHỞI CHẠY ỨNG DỤNG
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
-  // 0. Reset toàn bộ mã PIN cũ của tất cả tài khoản theo yêu cầu
-  resetAllExistingPins();
-
   // 1. Đăng ký Service Worker (PWA)
   registerServiceWorker();
 
@@ -688,6 +697,73 @@ async function handleVerifyPin(scope) {
 
   // Đúng mã PIN: Đăng nhập thành công!
   completeAccountLogin(email, false);
+}
+
+
+/* ==========================================================================
+   ĐỔI MÃ PIN BẢO MẬT (CHỈ DÀNH CHO TÀI KHOẢN ĐÃ ĐĂNG NHẬP)
+   ========================================================================== */
+function openChangePinModal() {
+  if (!DOM.changePinModal) return;
+  DOM.changePinModal.classList.remove("hidden");
+  if (DOM.changePinForm) DOM.changePinForm.reset();
+  if (DOM.currentPinInput) setTimeout(() => DOM.currentPinInput.focus(), 80);
+}
+
+function closeChangePinModal() {
+  if (DOM.changePinModal) {
+    DOM.changePinModal.classList.add("hidden");
+  }
+}
+
+async function handleChangePinSubmit(e) {
+  e.preventDefault();
+  if (!currentUser || !currentUser.email) {
+    showToast("Bạn chưa đăng nhập!", "warning");
+    return;
+  }
+
+  const currentPin = (DOM.currentPinInput.value || "").trim();
+  const newPin = (DOM.newPinInput.value || "").trim();
+  const confirmPin = (DOM.confirmNewPinInput.value || "").trim();
+
+  if (currentPin.length !== 6 || !/^\d{6}$/.test(currentPin)) {
+    showToast("Mã PIN hiện tại phải đủ 6 chữ số!", "warning");
+    DOM.currentPinInput.focus();
+    return;
+  }
+
+  // 1. Kiểm tra xem mã PIN cũ có đúng không
+  const isMatch = await verifyUserPin(currentUser.email, currentPin);
+  if (!isMatch) {
+    showToast("❌ Mã PIN hiện tại không chính xác!", "error");
+    DOM.currentPinInput.focus();
+    return;
+  }
+
+  // 2. Kiểm tra mã PIN mới
+  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+    showToast("Mã PIN mới phải gồm đúng 6 chữ số!", "warning");
+    DOM.newPinInput.focus();
+    return;
+  }
+
+  if (newPin === currentPin) {
+    showToast("Mã PIN mới không được trùng với mã PIN hiện tại!", "warning");
+    DOM.newPinInput.focus();
+    return;
+  }
+
+  if (newPin !== confirmPin) {
+    showToast("Xác nhận mã PIN mới không trùng khớp!", "warning");
+    DOM.confirmNewPinInput.focus();
+    return;
+  }
+
+  // 3. Cập nhật mã PIN mới vào hệ thống
+  await saveUserPin(currentUser.email, newPin);
+  showToast("🎉 Đã đổi Mã PIN 6 số thành công! Hãy ghi nhớ mã PIN mới này.", "success", 5000);
+  closeChangePinModal();
 }
 
 function completeAccountLogin(email, isBrandNew = false) {
@@ -1253,6 +1329,13 @@ function setupEventListeners() {
   if (DOM.closeLoginModalBtn) DOM.closeLoginModalBtn.addEventListener("click", closeLoginModal);
   if (DOM.loginModalBackdrop) DOM.loginModalBackdrop.addEventListener("click", closeLoginModal);
   if (DOM.logoutBtn) DOM.logoutBtn.addEventListener("click", handleLogout);
+
+  // Đổi Mã PIN (Trong App)
+  if (DOM.openChangePinModalBtn) DOM.openChangePinModalBtn.addEventListener("click", openChangePinModal);
+  if (DOM.closeChangePinModalBtn) DOM.closeChangePinModalBtn.addEventListener("click", closeChangePinModal);
+  if (DOM.cancelChangePinBtn) DOM.cancelChangePinBtn.addEventListener("click", closeChangePinModal);
+  if (DOM.changePinModalBackdrop) DOM.changePinModalBackdrop.addEventListener("click", closeChangePinModal);
+  if (DOM.changePinForm) DOM.changePinForm.addEventListener("submit", handleChangePinSubmit);
 
   // Hero PIN Triggers (Guest View)
   if (DOM.heroEmailForm) {
