@@ -1,7 +1,7 @@
 /**
  * ExpenseFlow Pro - Progressive Web App (PWA) Quản lý Chi tiêu Cá nhân
- * Xác thực bảo mật bằng Mã OTP gửi trực tiếp về hộp thư Gmail
- * Cô lập dữ liệu riêng tư cho từng tài khoản (Multi-User Data Isolation)
+ * Xác thực bảo mật bằng Mã PIN 6 số riêng biệt cho từng tài khoản Gmail
+ * Cô lập dữ liệu riêng tư cho từng cá nhân (Multi-User Data Isolation)
  */
 
 /* ==========================================================================
@@ -10,7 +10,7 @@
 const STORAGE_KEYS = {
   CURRENT_SESSION: "expenseflow_auth_session",
   USER_DATA_PREFIX: "expenseflow_txs_",
-  APPS_SCRIPT_URL: "expenseflow_apps_script_url"
+  PIN_PREFIX: "expenseflow_pin_"
 };
 
 const CATEGORIES = {
@@ -48,14 +48,13 @@ let expenseChartInstance = null;
 let deferredPrompt = null;
 let transactionToDeleteId = null;
 
-// OTP bí mật trong bộ nhớ (có hiệu lực 5 phút)
-let pendingOtp = {
+// Trạng thái xác thực tài khoản đang xử lý
+let pendingAuth = {
   email: "",
-  code: "",
-  expiresAt: 0
+  isNewAccount: false,
+  isHeroPinVisible: false,
+  isModalPinVisible: false
 };
-let heroOtpCountdownTimer = null;
-let modalOtpCountdownTimer = null;
 
 const currentFilter = {
   month: getCurrentMonthString(),
@@ -90,36 +89,42 @@ const DOM = {
   userEmailTag: document.getElementById("userEmailTag"),
   logoutBtn: document.getElementById("logoutBtn"),
 
-  // Hero OTP Elements (Guest View)
-  heroOtpStepEmail: document.getElementById("heroOtpStepEmail"),
-  heroSendOtpForm: document.getElementById("heroSendOtpForm"),
+  // Hero PIN Elements (Guest View)
+  heroPinStepEmail: document.getElementById("heroPinStepEmail"),
+  heroEmailForm: document.getElementById("heroEmailForm"),
   heroGmailInput: document.getElementById("heroGmailInput"),
-  heroSendOtpBtn: document.getElementById("heroSendOtpBtn"),
-  heroOtpStepVerify: document.getElementById("heroOtpStepVerify"),
+  heroEmailSubmitBtn: document.getElementById("heroEmailSubmitBtn"),
+  heroPinStepVerify: document.getElementById("heroPinStepVerify"),
+  heroPinTitle: document.getElementById("heroPinTitle"),
+  heroPinSubtitle: document.getElementById("heroPinSubtitle"),
   heroTargetEmailDisplay: document.getElementById("heroTargetEmailDisplay"),
   heroChangeEmailBtn: document.getElementById("heroChangeEmailBtn"),
-  heroOtpBoxes: document.querySelectorAll(".hero-otp-box"),
-  heroVerifyOtpBtn: document.getElementById("heroVerifyOtpBtn"),
-  heroCountdownText: document.getElementById("heroCountdownText"),
-  heroCountdownSec: document.getElementById("heroCountdownSec"),
-  heroResendOtpBtn: document.getElementById("heroResendOtpBtn"),
+  heroPinBoxes: document.querySelectorAll(".hero-pin-box"),
+  heroTogglePinVisibilityBtn: document.getElementById("heroTogglePinVisibilityBtn"),
+  heroPinEyeIcon: document.getElementById("heroPinEyeIcon"),
+  heroPinEyeText: document.getElementById("heroPinEyeText"),
+  heroVerifyPinBtn: document.getElementById("heroVerifyPinBtn"),
+  heroVerifyPinBtnText: document.getElementById("heroVerifyPinBtnText"),
 
-  // Modal OTP Elements (Header Button)
+  // Modal PIN Elements (Header Button)
   loginModal: document.getElementById("loginModal"),
   loginModalBackdrop: document.getElementById("loginModalBackdrop"),
   closeLoginModalBtn: document.getElementById("closeLoginModalBtn"),
-  modalOtpStepEmail: document.getElementById("modalOtpStepEmail"),
-  modalSendOtpForm: document.getElementById("modalSendOtpForm"),
+  modalPinStepEmail: document.getElementById("modalPinStepEmail"),
+  modalEmailForm: document.getElementById("modalEmailForm"),
   modalGmailInput: document.getElementById("modalGmailInput"),
-  modalSendOtpBtn: document.getElementById("modalSendOtpBtn"),
-  modalOtpStepVerify: document.getElementById("modalOtpStepVerify"),
+  modalEmailSubmitBtn: document.getElementById("modalEmailSubmitBtn"),
+  modalPinStepVerify: document.getElementById("modalPinStepVerify"),
+  modalPinTitle: document.getElementById("modalPinTitle"),
+  modalPinSubtitle: document.getElementById("modalPinSubtitle"),
   modalTargetEmailDisplay: document.getElementById("modalTargetEmailDisplay"),
   modalChangeEmailBtn: document.getElementById("modalChangeEmailBtn"),
-  modalOtpBoxes: document.querySelectorAll(".modal-otp-box"),
-  modalVerifyOtpBtn: document.getElementById("modalVerifyOtpBtn"),
-  modalCountdownText: document.getElementById("modalCountdownText"),
-  modalCountdownSec: document.getElementById("modalCountdownSec"),
-  modalResendOtpBtn: document.getElementById("modalResendOtpBtn"),
+  modalPinBoxes: document.querySelectorAll(".modal-pin-box"),
+  modalTogglePinVisibilityBtn: document.getElementById("modalTogglePinVisibilityBtn"),
+  modalPinEyeIcon: document.getElementById("modalPinEyeIcon"),
+  modalPinEyeText: document.getElementById("modalPinEyeText"),
+  modalVerifyPinBtn: document.getElementById("modalVerifyPinBtn"),
+  modalVerifyPinBtnText: document.getElementById("modalVerifyPinBtnText"),
 
   // Mobile Bottom Navigation
   navOverviewBtn: document.getElementById("navOverviewBtn"),
@@ -196,17 +201,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 4. Lắng nghe sự kiện giao diện
   setupEventListeners();
-  setupOtpInputHandlers();
+  setupPinInputHandlers();
   populateCategorySelect("expense");
   setDefaultModalDate();
-
-  // 5. Kiểm tra nếu có script URL truyền qua Query parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const scriptFromUrl = urlParams.get("script") || urlParams.get("api");
-  if (scriptFromUrl && scriptFromUrl.startsWith("http")) {
-    localStorage.setItem(STORAGE_KEYS.APPS_SCRIPT_URL, scriptFromUrl);
-    showToast("✅ Đã kết nối Cổng gửi Mail Google Apps Script thành công!", "success");
-  }
 });
 
 function registerServiceWorker() {
@@ -259,8 +256,39 @@ async function triggerPwaInstall() {
 }
 
 /* ==========================================================================
-   5. XÁC THỰC BẢO MẬT BẰNG MÃ OTP QUA GMAIL
+   5. XÁC THỰC BẢO MẬT BẰNG MÃ PIN 6 SỐ RIÊNG BIỆT CHO TỪNG GMAIL
    ========================================================================== */
+function getCleanEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
+function getPinStorageKey(email) {
+  const safe = encodeURIComponent(getCleanEmail(email)).replace(/[^a-zA-Z0-9_]/g, "_");
+  return `${STORAGE_KEYS.PIN_PREFIX}${safe}`;
+}
+
+function hasUserPin(email) {
+  return Boolean(localStorage.getItem(getPinStorageKey(email)));
+}
+
+async function hashPin(pin) {
+  const buffer = new TextEncoder().encode("EXPENSEFLOW_SALT_PIN_" + pin);
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function saveUserPin(email, pin) {
+  const hashed = await hashPin(pin);
+  localStorage.setItem(getPinStorageKey(email), hashed);
+}
+
+async function verifyUserPin(email, pin) {
+  const savedHash = localStorage.getItem(getPinStorageKey(email));
+  if (!savedHash) return false;
+  const currentHash = await hashPin(pin);
+  return currentHash === savedHash;
+}
+
 function restoreUserSession() {
   const rawSession = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
   if (DOM.loadingScreen) DOM.loadingScreen.classList.add("hidden");
@@ -294,28 +322,30 @@ function showGuestView() {
     DOM.userProfile.classList.remove("flex");
   }
 
-  // Reset về Bước 1 (Nhập Email)
-  resetOtpFlow();
+  resetPinFlow();
 }
 
-function resetOtpFlow() {
+function resetPinFlow() {
   // Hero
-  if (DOM.heroOtpStepEmail) DOM.heroOtpStepEmail.classList.remove("hidden");
-  if (DOM.heroOtpStepVerify) DOM.heroOtpStepVerify.classList.add("hidden");
-  if (DOM.heroOtpBoxes) DOM.heroOtpBoxes.forEach(b => b.value = "");
-  clearInterval(heroOtpCountdownTimer);
+  if (DOM.heroPinStepEmail) DOM.heroPinStepEmail.classList.remove("hidden");
+  if (DOM.heroPinStepVerify) DOM.heroPinStepVerify.classList.add("hidden");
+  if (DOM.heroPinBoxes) DOM.heroPinBoxes.forEach(b => b.value = "");
+  setPinVisibility("hero", false);
 
   // Modal
-  if (DOM.modalOtpStepEmail) DOM.modalOtpStepEmail.classList.remove("hidden");
-  if (DOM.modalOtpStepVerify) DOM.modalOtpStepVerify.classList.add("hidden");
-  if (DOM.modalOtpBoxes) DOM.modalOtpBoxes.forEach(b => b.value = "");
-  clearInterval(modalOtpCountdownTimer);
+  if (DOM.modalPinStepEmail) DOM.modalPinStepEmail.classList.remove("hidden");
+  if (DOM.modalPinStepVerify) DOM.modalPinStepVerify.classList.add("hidden");
+  if (DOM.modalPinBoxes) DOM.modalPinBoxes.forEach(b => b.value = "");
+  setPinVisibility("modal", false);
+
+  pendingAuth.email = "";
+  pendingAuth.isNewAccount = false;
 }
 
 function openLoginModal() {
   if (DOM.loginModal) {
     DOM.loginModal.classList.remove("hidden");
-    resetOtpFlow();
+    resetPinFlow();
     if (DOM.modalGmailInput) DOM.modalGmailInput.focus();
   }
 }
@@ -323,161 +353,67 @@ function openLoginModal() {
 function closeLoginModal() {
   if (DOM.loginModal) {
     DOM.loginModal.classList.add("hidden");
-    clearInterval(modalOtpCountdownTimer);
   }
 }
 
 /**
- * Gửi email chứa mã OTP thực tế tới hòm thư Gmail người dùng
- * Sử dụng Google Apps Script Web App hoặc Webhook an toàn
+ * Xử lý Bước 1: Người dùng nhập email và bấm Tiếp tục
  */
-async function sendRealOtpEmail(email, otpCode) {
-  const customScriptUrl = localStorage.getItem(STORAGE_KEYS.APPS_SCRIPT_URL);
-  
-  const endpoints = [];
-  if (customScriptUrl && customScriptUrl.startsWith("http")) {
-    endpoints.push(customScriptUrl);
-  }
-
-  const payload = {
-    email: email,
-    to_email: email,
-    otp: otpCode,
-    otp_code: otpCode,
-    appName: "ExpenseFlow Pro",
-    timestamp: new Date().toISOString()
-  };
-
-  let isSent = false;
-
-  for (const url of endpoints) {
-    try {
-      await fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      // Gửi thành công tới Google Apps Script
-      isSent = true;
-      break;
-    } catch (err) {
-      console.warn("[Email Service] Thử gửi qua endpoint thất bại:", url, err);
-    }
-  }
-
-  return isSent;
-}
-
-/**
- * Xử lý Gửi mã OTP (áp dụng cho cả Hero form và Modal form)
- */
-async function handleTriggerSendOtp(emailInput, btnElement, scope) {
-  const email = (emailInput.value || "").trim().toLowerCase();
+function handleEmailSubmit(emailInput, scope) {
+  const email = getCleanEmail(emailInput.value);
 
   if (!email || !validateEmail(email)) {
-    showToast("Vui lòng nhập địa chỉ email hợp lệ (ví dụ: yourname@gmail.com)!", "warning");
+    showToast("Vui lòng nhập địa chỉ Gmail hợp lệ (ví dụ: yourname@gmail.com)!", "warning");
     emailInput.focus();
     return;
   }
 
-  // Sinh mã OTP 6 chữ số ngẫu nhiên bí mật
-  const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  pendingOtp = {
-    email: email,
-    code: randomOtp,
-    expiresAt: Date.now() + 5 * 60 * 1000 // Có hiệu lực trong 5 phút
-  };
+  pendingAuth.email = email;
+  pendingAuth.isNewAccount = !hasUserPin(email);
 
-  btnElement.disabled = true;
-  const originalBtnHtml = btnElement.innerHTML;
-  btnElement.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Đang gửi mã vào Gmail...</span>`;
+  if (scope === "hero") {
+    DOM.heroPinStepEmail.classList.add("hidden");
+    DOM.heroPinStepVerify.classList.remove("hidden");
+    DOM.heroTargetEmailDisplay.textContent = email;
 
-  try {
-    const isSent = await sendRealOtpEmail(email, randomOtp);
-
-    // Chuyển sang Bước 2: Nhập OTP
-    if (scope === "hero") {
-      DOM.heroOtpStepEmail.classList.add("hidden");
-      DOM.heroOtpStepVerify.classList.remove("hidden");
-      DOM.heroTargetEmailDisplay.textContent = email;
-      DOM.heroOtpBoxes.forEach(b => b.value = "");
-      DOM.heroOtpBoxes[0].focus();
-      startHeroOtpCountdown(60);
+    if (pendingAuth.isNewAccount) {
+      DOM.heroPinTitle.textContent = "Thiết lập Mã PIN mới";
+      DOM.heroPinSubtitle.innerHTML = `Tài khoản mới: Đặt <b>Mã PIN 6 số bí mật</b> để bảo vệ sổ chi tiêu của:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
+      DOM.heroVerifyPinBtnText.textContent = "Tạo Mã PIN & Vào sổ chi tiêu";
+      showToast("💡 Tài khoản mới: Vui lòng nhập 6 số bất kỳ để đặt Mã PIN bảo vệ tài khoản này!", "info", 5000);
     } else {
-      DOM.modalOtpStepEmail.classList.add("hidden");
-      DOM.modalOtpStepVerify.classList.remove("hidden");
-      DOM.modalTargetEmailDisplay.textContent = email;
-      DOM.modalOtpBoxes.forEach(b => b.value = "");
-      DOM.modalOtpBoxes[0].focus();
-      startModalOtpCountdown(60);
+      DOM.heroPinTitle.textContent = "Nhập Mã PIN bảo mật";
+      DOM.heroPinSubtitle.innerHTML = `Nhập mã PIN 6 số của tài khoản:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
+      DOM.heroVerifyPinBtnText.textContent = "Mở khóa sổ chi tiêu";
     }
 
-    if (isSent) {
-      showToast(`✅ Mã xác thực OTP đã được gửi đến hộp thư Gmail của bạn. Vui lòng mở Gmail (kiểm tra cả Hộp thư đến và Spam) để lấy mã!`, "success", 7000);
+    DOM.heroPinBoxes.forEach(b => b.value = "");
+    DOM.heroPinBoxes[0].focus();
+  } else {
+    DOM.modalPinStepEmail.classList.add("hidden");
+    DOM.modalPinStepVerify.classList.remove("hidden");
+    DOM.modalTargetEmailDisplay.textContent = email;
+
+    if (pendingAuth.isNewAccount) {
+      DOM.modalPinTitle.textContent = "Thiết lập Mã PIN mới";
+      DOM.modalPinSubtitle.innerHTML = `Tài khoản mới: Đặt <b>Mã PIN 6 số bí mật</b> để bảo vệ sổ chi tiêu của:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
+      DOM.modalVerifyPinBtnText.textContent = "Tạo Mã PIN & Vào sổ chi tiêu";
+      showToast("💡 Tài khoản mới: Vui lòng nhập 6 số bất kỳ để đặt Mã PIN bảo vệ tài khoản này!", "info", 5000);
     } else {
-      // Thông báo chung bảo mật - TUYỆT ĐỐI không hiển thị mã trên giao diện
-      showToast(`✅ Đã gửi mã OTP bảo mật tới ${email}. Vui lòng mở hộp thư Gmail của bạn để lấy mã xác thực!`, "success", 7000);
+      DOM.modalPinTitle.textContent = "Nhập Mã PIN bảo mật";
+      DOM.modalPinSubtitle.innerHTML = `Nhập mã PIN 6 số của tài khoản:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
+      DOM.modalVerifyPinBtnText.textContent = "Mở khóa sổ chi tiêu";
     }
 
-  } catch (error) {
-    console.error("Lỗi gửi OTP:", error);
-    showToast("Có lỗi khi kết nối máy chủ gửi mail. Vui lòng thử lại!", "error");
-  } finally {
-    btnElement.disabled = false;
-    btnElement.innerHTML = originalBtnHtml;
+    DOM.modalPinBoxes.forEach(b => b.value = "");
+    DOM.modalPinBoxes[0].focus();
   }
 }
 
 /**
- * Đếm ngược 60 giây gửi lại mã OTP (Hero)
+ * Cài đặt xử lý gõ 6 ô PIN (nhảy ô, xóa lùi, dán clipboard, tự xác nhận)
  */
-function startHeroOtpCountdown(seconds) {
-  clearInterval(heroOtpCountdownTimer);
-  let remain = seconds;
-  DOM.heroCountdownText.classList.remove("hidden");
-  DOM.heroResendOtpBtn.classList.add("hidden");
-  DOM.heroCountdownSec.textContent = remain;
-
-  heroOtpCountdownTimer = setInterval(() => {
-    remain--;
-    DOM.heroCountdownSec.textContent = remain;
-    if (remain <= 0) {
-      clearInterval(heroOtpCountdownTimer);
-      DOM.heroCountdownText.classList.add("hidden");
-      DOM.heroResendOtpBtn.classList.remove("hidden");
-    }
-  }, 1000);
-}
-
-/**
- * Đếm ngược 60 giây gửi lại mã OTP (Modal)
- */
-function startModalOtpCountdown(seconds) {
-  clearInterval(modalOtpCountdownTimer);
-  let remain = seconds;
-  DOM.modalCountdownText.classList.remove("hidden");
-  DOM.modalResendOtpBtn.classList.add("hidden");
-  DOM.modalCountdownSec.textContent = remain;
-
-  modalOtpCountdownTimer = setInterval(() => {
-    remain--;
-    DOM.modalCountdownSec.textContent = remain;
-    if (remain <= 0) {
-      clearInterval(modalOtpCountdownTimer);
-      DOM.modalCountdownText.classList.add("hidden");
-      DOM.modalResendOtpBtn.classList.remove("hidden");
-    }
-  }, 1000);
-}
-
-/**
- * Cài đặt xử lý bàn phím cho 6 ô nhập mã OTP (Hero & Modal)
- */
-function setupOtpInputHandlers() {
+function setupPinInputHandlers() {
   const attachHandlers = (boxes, verifyFn) => {
     boxes.forEach((box, index) => {
       // Chỉ cho phép nhập chữ số
@@ -521,38 +457,79 @@ function setupOtpInputHandlers() {
     });
   };
 
-  attachHandlers(DOM.heroOtpBoxes, () => handleVerifyOtp("hero"));
-  attachHandlers(DOM.modalOtpBoxes, () => handleVerifyOtp("modal"));
+  attachHandlers(DOM.heroPinBoxes, () => handleVerifyPin("hero"));
+  attachHandlers(DOM.modalPinBoxes, () => handleVerifyPin("modal"));
 }
 
 /**
- * Xác thực mã OTP và tiến hành đăng nhập
+ * Ẩn / Hiện mã PIN
  */
-function handleVerifyOtp(scope) {
-  const boxes = scope === "hero" ? DOM.heroOtpBoxes : DOM.modalOtpBoxes;
-  const enteredOtp = Array.from(boxes).map(b => b.value).join("");
+function setPinVisibility(scope, isVisible) {
+  if (scope === "hero") {
+    pendingAuth.isHeroPinVisible = isVisible;
+    if (DOM.heroPinBoxes) {
+      DOM.heroPinBoxes.forEach(b => b.type = isVisible ? "text" : "password");
+    }
+    if (DOM.heroPinEyeIcon) DOM.heroPinEyeIcon.className = isVisible ? "fa-regular fa-eye-slash text-sm" : "fa-regular fa-eye text-sm";
+    if (DOM.heroPinEyeText) DOM.heroPinEyeText.textContent = isVisible ? "Ẩn mã PIN" : "Hiện mã PIN";
+  } else {
+    pendingAuth.isModalPinVisible = isVisible;
+    if (DOM.modalPinBoxes) {
+      DOM.modalPinBoxes.forEach(b => b.type = isVisible ? "text" : "password");
+    }
+    if (DOM.modalPinEyeIcon) DOM.modalPinEyeIcon.className = isVisible ? "fa-regular fa-eye-slash text-sm" : "fa-regular fa-eye text-sm";
+    if (DOM.modalPinEyeText) DOM.modalPinEyeText.textContent = isVisible ? "Ẩn mã PIN" : "Hiện mã PIN";
+  }
+}
 
-  if (enteredOtp.length < 6) {
-    showToast("Vui lòng nhập đủ 6 chữ số mã OTP!", "warning");
+/**
+ * Xử lý Bước 2: Xác thực Mã PIN hoặc Lưu Mã PIN mới
+ */
+async function handleVerifyPin(scope) {
+  const boxes = scope === "hero" ? DOM.heroPinBoxes : DOM.modalPinBoxes;
+  const enteredPin = Array.from(boxes).map(b => b.value).join("");
+  const email = pendingAuth.email;
+
+  if (!email) {
+    showToast("Vui lòng nhập lại địa chỉ Gmail!", "warning");
+    resetPinFlow();
     return;
   }
 
-  if (Date.now() > pendingOtp.expiresAt) {
-    showToast("Mã OTP đã hết hạn hiệu lực (5 phút). Vui lòng nhấn gửi lại mã!", "error");
+  if (enteredPin.length < 6) {
+    showToast("Vui lòng điền đủ 6 chữ số Mã PIN!", "warning");
     return;
   }
 
-  if (enteredOtp !== pendingOtp.code) {
-    showToast("Mã OTP không chính xác. Vui lòng kiểm tra lại!", "error");
-    boxes.forEach(b => b.classList.add("otp-error"));
+  // Trường hợp A: Tạo Mã PIN mới cho tài khoản lần đầu đăng nhập
+  if (pendingAuth.isNewAccount) {
+    await saveUserPin(email, enteredPin);
+    showToast("🎉 Đã thiết lập Mã PIN 6 số thành công! Hãy ghi nhớ mã này.", "success", 5000);
+    completeAccountLogin(email, true);
+    return;
+  }
+
+  // Trường hợp B: Xác thực Mã PIN của tài khoản đã tồn tại
+  const isMatch = await verifyUserPin(email, enteredPin);
+
+  if (!isMatch) {
+    showToast("❌ Mã PIN không chính xác! Vui lòng thử lại.", "error");
+    boxes.forEach(b => b.classList.add("pin-error"));
     setTimeout(() => {
-      boxes.forEach(b => b.classList.remove("otp-error"));
-    }, 1000);
+      boxes.forEach(b => {
+        b.classList.remove("pin-error");
+        b.value = "";
+      });
+      boxes[0].focus();
+    }, 800);
     return;
   }
 
-  // Xác thực thành công!
-  const email = pendingOtp.email;
+  // Đúng mã PIN: Đăng nhập thành công!
+  completeAccountLogin(email, false);
+}
+
+function completeAccountLogin(email, isBrandNew = false) {
   const namePart = email.split("@")[0];
   const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
 
@@ -1116,62 +1093,56 @@ function setupEventListeners() {
   if (DOM.loginModalBackdrop) DOM.loginModalBackdrop.addEventListener("click", closeLoginModal);
   if (DOM.logoutBtn) DOM.logoutBtn.addEventListener("click", handleLogout);
 
-  // Hero OTP Triggers (Guest View)
-  if (DOM.heroSendOtpForm) {
-    DOM.heroSendOtpForm.addEventListener("submit", (e) => {
+  // Hero PIN Triggers (Guest View)
+  if (DOM.heroEmailForm) {
+    DOM.heroEmailForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      handleTriggerSendOtp(DOM.heroGmailInput, DOM.heroSendOtpBtn, "hero");
+      handleEmailSubmit(DOM.heroGmailInput, "hero");
     });
   }
 
   if (DOM.heroChangeEmailBtn) {
     DOM.heroChangeEmailBtn.addEventListener("click", () => {
-      DOM.heroOtpStepVerify.classList.add("hidden");
-      DOM.heroOtpStepEmail.classList.remove("hidden");
+      DOM.heroPinStepVerify.classList.add("hidden");
+      DOM.heroPinStepEmail.classList.remove("hidden");
       DOM.heroGmailInput.focus();
     });
   }
 
-  if (DOM.heroResendOtpBtn) {
-    DOM.heroResendOtpBtn.addEventListener("click", () => {
-      if (pendingOtp.email) {
-        DOM.heroGmailInput.value = pendingOtp.email;
-        handleTriggerSendOtp(DOM.heroGmailInput, DOM.heroSendOtpBtn, "hero");
-      }
+  if (DOM.heroTogglePinVisibilityBtn) {
+    DOM.heroTogglePinVisibilityBtn.addEventListener("click", () => {
+      setPinVisibility("hero", !pendingAuth.isHeroPinVisible);
     });
   }
 
-  if (DOM.heroVerifyOtpBtn) {
-    DOM.heroVerifyOtpBtn.addEventListener("click", () => handleVerifyOtp("hero"));
+  if (DOM.heroVerifyPinBtn) {
+    DOM.heroVerifyPinBtn.addEventListener("click", () => handleVerifyPin("hero"));
   }
 
-  // Modal OTP Triggers (Header Button)
-  if (DOM.modalSendOtpForm) {
-    DOM.modalSendOtpForm.addEventListener("submit", (e) => {
+  // Modal PIN Triggers (Header Button)
+  if (DOM.modalEmailForm) {
+    DOM.modalEmailForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      handleTriggerSendOtp(DOM.modalGmailInput, DOM.modalSendOtpBtn, "modal");
+      handleEmailSubmit(DOM.modalGmailInput, "modal");
     });
   }
 
   if (DOM.modalChangeEmailBtn) {
     DOM.modalChangeEmailBtn.addEventListener("click", () => {
-      DOM.modalOtpStepVerify.classList.add("hidden");
-      DOM.modalOtpStepEmail.classList.remove("hidden");
+      DOM.modalPinStepVerify.classList.add("hidden");
+      DOM.modalPinStepEmail.classList.remove("hidden");
       DOM.modalGmailInput.focus();
     });
   }
 
-  if (DOM.modalResendOtpBtn) {
-    DOM.modalResendOtpBtn.addEventListener("click", () => {
-      if (pendingOtp.email) {
-        DOM.modalGmailInput.value = pendingOtp.email;
-        handleTriggerSendOtp(DOM.modalGmailInput, DOM.modalSendOtpBtn, "modal");
-      }
+  if (DOM.modalTogglePinVisibilityBtn) {
+    DOM.modalTogglePinVisibilityBtn.addEventListener("click", () => {
+      setPinVisibility("modal", !pendingAuth.isModalPinVisible);
     });
   }
 
-  if (DOM.modalVerifyOtpBtn) {
-    DOM.modalVerifyOtpBtn.addEventListener("click", () => handleVerifyOtp("modal"));
+  if (DOM.modalVerifyPinBtn) {
+    DOM.modalVerifyPinBtn.addEventListener("click", () => handleVerifyPin("modal"));
   }
 
   // Mobile Bottom Navigation
@@ -1262,51 +1233,12 @@ function setupEventListeners() {
 
   DOM.exportCsvBtn.addEventListener("click", exportTransactionsToCSV);
 
-  // Cấu hình Cổng Gửi Email (Google Apps Script)
-  const openScriptConfigBtn = document.getElementById("openScriptConfigBtn");
-  const scriptConfigModal = document.getElementById("scriptConfigModal");
-  const scriptConfigModalBackdrop = document.getElementById("scriptConfigModalBackdrop");
-  const closeScriptConfigBtn = document.getElementById("closeScriptConfigBtn");
-  const cancelScriptConfigBtn = document.getElementById("cancelScriptConfigBtn");
-  const saveScriptConfigBtn = document.getElementById("saveScriptConfigBtn");
-  const scriptUrlInput = document.getElementById("scriptUrlInput");
-
-  if (openScriptConfigBtn) {
-    openScriptConfigBtn.addEventListener("click", () => {
-      const saved = localStorage.getItem(STORAGE_KEYS.APPS_SCRIPT_URL) || "";
-      if (scriptUrlInput) scriptUrlInput.value = saved;
-      if (scriptConfigModal) scriptConfigModal.classList.remove("hidden");
-    });
-  }
-
-  const closeScriptModal = () => {
-    if (scriptConfigModal) scriptConfigModal.classList.add("hidden");
-  };
-
-  if (closeScriptConfigBtn) closeScriptConfigBtn.addEventListener("click", closeScriptModal);
-  if (cancelScriptConfigBtn) cancelScriptConfigBtn.addEventListener("click", closeScriptModal);
-  if (scriptConfigModalBackdrop) scriptConfigModalBackdrop.addEventListener("click", closeScriptModal);
-
-  if (saveScriptConfigBtn) {
-    saveScriptConfigBtn.addEventListener("click", () => {
-      const val = (scriptUrlInput ? scriptUrlInput.value : "").trim();
-      if (val && !val.startsWith("http")) {
-        showToast("Vui lòng nhập đường dẫn URL hợp lệ bắt đầu bằng https://", "warning");
-        return;
-      }
-      localStorage.setItem(STORAGE_KEYS.APPS_SCRIPT_URL, val);
-      showToast("✅ Đã lưu Cổng gửi Mail thành công!", "success");
-      closeScriptModal();
-    });
-  }
-
   // Phím ESC
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeTransactionModal();
       closeDeleteModal();
       closeLoginModal();
-      closeScriptModal();
       if (DOM.iosInstallModal) DOM.iosInstallModal.classList.add("hidden");
     }
   });

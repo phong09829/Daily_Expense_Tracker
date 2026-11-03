@@ -92,7 +92,9 @@
   animation: toastSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-/* OTP Box Focus & Styling */
+/* PIN Box Focus & Styling */
+.hero-pin-box:focus,
+.modal-pin-box:focus,
 .hero-otp-box:focus,
 .modal-otp-box:focus {
   border-color: #4f46e5 !important;
@@ -100,6 +102,7 @@
   transform: translateY(-1px);
 }
 
+.pin-error,
 .otp-error {
   border-color: #ef4444 !important;
   animation: shake 0.4s ease-in-out;
