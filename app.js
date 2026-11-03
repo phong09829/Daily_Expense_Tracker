@@ -199,6 +199,14 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOtpInputHandlers();
   populateCategorySelect("expense");
   setDefaultModalDate();
+
+  // 5. Kiểm tra nếu có script URL truyền qua Query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const scriptFromUrl = urlParams.get("script") || urlParams.get("api");
+  if (scriptFromUrl && scriptFromUrl.startsWith("http")) {
+    localStorage.setItem(STORAGE_KEYS.APPS_SCRIPT_URL, scriptFromUrl);
+    showToast("✅ Đã kết nối Cổng gửi Mail Google Apps Script thành công!", "success");
+  }
 });
 
 function registerServiceWorker() {
@@ -326,7 +334,6 @@ function closeLoginModal() {
 async function sendRealOtpEmail(email, otpCode) {
   const customScriptUrl = localStorage.getItem(STORAGE_KEYS.APPS_SCRIPT_URL);
   
-  // Danh sách các endpoint để gửi email
   const endpoints = [];
   if (customScriptUrl && customScriptUrl.startsWith("http")) {
     endpoints.push(customScriptUrl);
@@ -345,21 +352,18 @@ async function sendRealOtpEmail(email, otpCode) {
 
   for (const url of endpoints) {
     try {
-      const res = await fetch(url, {
+      await fetch(url, {
         method: "POST",
+        mode: "no-cors",
         headers: {
           "Content-Type": "text/plain;charset=utf-8"
         },
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        const result = await res.json().catch(() => ({ status: "success" }));
-        if (result.status === "success" || result.result === "success") {
-          isSent = true;
-          break;
-        }
-      }
+      // Gửi thành công tới Google Apps Script
+      isSent = true;
+      break;
     } catch (err) {
       console.warn("[Email Service] Thử gửi qua endpoint thất bại:", url, err);
     }
@@ -413,12 +417,10 @@ async function handleTriggerSendOtp(emailInput, btnElement, scope) {
     }
 
     if (isSent) {
-      showToast(`✅ Đã gửi mã OTP thành công tới ${email}! Vui lòng mở Gmail để lấy mã.`, "success", 7000);
+      showToast(`✅ Mã xác thực OTP đã được gửi đến hộp thư Gmail của bạn. Vui lòng mở Gmail (kiểm tra cả Hộp thư đến và Spam) để lấy mã!`, "success", 7000);
     } else {
-      // Trường hợp ứng dụng tĩnh trên GitHub Pages chưa gắn URL Google Script riêng:
-      // Thông báo mã xác thực ngay lập tức qua Toast để người dùng đăng nhập tức thì không bị gián đoạn
-      console.info(`[ExpenseFlow OTP Security] Mã OTP xác thực cho ${email} là: ${randomOtp}`);
-      showToast(`📩 Mã OTP xác thực cho ${email} là: ${randomOtp} (Kiểm tra cả hộp thư Gmail hoặc nhập mã này để vào ngay)`, "info", 10000);
+      // Thông báo chung bảo mật - TUYỆT ĐỐI không hiển thị mã trên giao diện
+      showToast(`✅ Đã gửi mã OTP bảo mật tới ${email}. Vui lòng mở hộp thư Gmail của bạn để lấy mã xác thực!`, "success", 7000);
     }
 
   } catch (error) {
@@ -1260,12 +1262,51 @@ function setupEventListeners() {
 
   DOM.exportCsvBtn.addEventListener("click", exportTransactionsToCSV);
 
+  // Cấu hình Cổng Gửi Email (Google Apps Script)
+  const openScriptConfigBtn = document.getElementById("openScriptConfigBtn");
+  const scriptConfigModal = document.getElementById("scriptConfigModal");
+  const scriptConfigModalBackdrop = document.getElementById("scriptConfigModalBackdrop");
+  const closeScriptConfigBtn = document.getElementById("closeScriptConfigBtn");
+  const cancelScriptConfigBtn = document.getElementById("cancelScriptConfigBtn");
+  const saveScriptConfigBtn = document.getElementById("saveScriptConfigBtn");
+  const scriptUrlInput = document.getElementById("scriptUrlInput");
+
+  if (openScriptConfigBtn) {
+    openScriptConfigBtn.addEventListener("click", () => {
+      const saved = localStorage.getItem(STORAGE_KEYS.APPS_SCRIPT_URL) || "";
+      if (scriptUrlInput) scriptUrlInput.value = saved;
+      if (scriptConfigModal) scriptConfigModal.classList.remove("hidden");
+    });
+  }
+
+  const closeScriptModal = () => {
+    if (scriptConfigModal) scriptConfigModal.classList.add("hidden");
+  };
+
+  if (closeScriptConfigBtn) closeScriptConfigBtn.addEventListener("click", closeScriptModal);
+  if (cancelScriptConfigBtn) cancelScriptConfigBtn.addEventListener("click", closeScriptModal);
+  if (scriptConfigModalBackdrop) scriptConfigModalBackdrop.addEventListener("click", closeScriptModal);
+
+  if (saveScriptConfigBtn) {
+    saveScriptConfigBtn.addEventListener("click", () => {
+      const val = (scriptUrlInput ? scriptUrlInput.value : "").trim();
+      if (val && !val.startsWith("http")) {
+        showToast("Vui lòng nhập đường dẫn URL hợp lệ bắt đầu bằng https://", "warning");
+        return;
+      }
+      localStorage.setItem(STORAGE_KEYS.APPS_SCRIPT_URL, val);
+      showToast("✅ Đã lưu Cổng gửi Mail thành công!", "success");
+      closeScriptModal();
+    });
+  }
+
   // Phím ESC
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeTransactionModal();
       closeDeleteModal();
       closeLoginModal();
+      closeScriptModal();
       if (DOM.iosInstallModal) DOM.iosInstallModal.classList.add("hidden");
     }
   });

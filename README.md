@@ -36,11 +36,10 @@ Dự án đã tích hợp sẵn file backend [`google-apps-script-otp.gs`](./goo
    - **Ai có quyền truy cập (Who has access):** `Bất kỳ ai (Anyone)`.
 5. Nhấn **Triển khai** ➜ Cấp quyền cho script gửi email khi được hỏi.
 6. Sao chép **URL ứng dụng web** (có dạng `https://script.google.com/macros/s/.../exec`).
-7. Mở Console trình duyệt tại trang web ExpenseFlow và lưu URL bằng lệnh:
-   ```javascript
-   localStorage.setItem("expenseflow_apps_script_url", "URL_CỦA_BẠN_Ở_ĐÂY");
-   ```
-   *(Từ lúc này, mỗi khi bạn nhấn gửi mã OTP, Google Apps Script sẽ tự động gửi thư chứa mã xác nhận trực tiếp vào hộp thư Gmail của bạn).*
+7. Tại trang web ExpenseFlow, bấm vào nút **"⚙️ Cài đặt Cổng gửi Mail"** ở chân trang và dán URL vào ➜ Bấm **Lưu cấu hình**.
+   *(Hoặc mở trực tiếp link: `https://phong09829.github.io/Daily_Expense_Tracker/?script=URL_CỦA_BẠN`)*.
+   
+🎉 **Xong!** Từ lúc này, mỗi khi bạn nhấn gửi mã OTP, hệ thống sẽ tự động gửi thư chứa mã xác nhận trực tiếp vào hộp thư Gmail của bạn. Người ngoài không có quyền truy cập vào Gmail của bạn sẽ không bao giờ có mã để đăng nhập!
 
 ---
 
