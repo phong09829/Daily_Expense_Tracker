@@ -179,18 +179,12 @@
         </p>
       </div>
 
-      <!-- Login & Quick Access Actions -->
+      <!-- Login Action -->
       <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-        <!-- Nút Đăng nhập OTP Gmail -->
-        <button id="heroOtpBtn" class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">
+        <!-- Nút Đăng nhập OTP Gmail Duy Nhất -->
+        <button id="heroOtpBtn" class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-rose-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-base shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">
           <i class="fa-solid fa-key"></i>
-          <span>Đăng nhập bằng mã OTP Gmail</span>
-        </button>
-
-        <!-- Dùng thử với vai trò Khách -->
-        <button id="guestTrialBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm shadow-sm active:scale-95 transition-all">
-          <i class="fa-solid fa-user-astronaut text-slate-400"></i>
-          <span>Dùng thử chế độ Khách</span>
+          <span>Đăng nhập bằng mã OTP gửi về Gmail</span>
         </button>
       </div>
 
@@ -468,13 +462,10 @@
             </button>
           </form>
 
-          <div class="text-center pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-            <button id="quickGuestFromModalBtn" class="font-bold text-slate-500 hover:text-indigo-600 transition">
-              Dùng thử vai trò Khách &rarr;
-            </button>
-            <button id="openEmailConfigBtn" class="text-slate-400 hover:text-slate-600 transition flex items-center gap-1" title="Cài đặt tài khoản gửi Email riêng">
-              <i class="fa-solid fa-gear text-[11px]"></i>
-              <span>Cài đặt Email</span>
+          <div class="text-right pt-2 border-t border-slate-100 text-xs">
+            <button id="openEmailConfigBtn" class="text-slate-400 hover:text-indigo-600 transition inline-flex items-center gap-1.5 font-medium" title="Cài đặt tài khoản gửi Email (EmailJS)">
+              <i class="fa-solid fa-gear text-xs"></i>
+              <span>Cài đặt cổng gửi Email (EmailJS)</span>
             </button>
           </div>
         </div>

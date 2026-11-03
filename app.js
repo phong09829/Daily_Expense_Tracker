@@ -85,6 +85,7 @@ const currentFilter = {
 /* ==========================================================================
    3. DOM ELEMENTS
    ========================================================================== */
+// DOM Elements cập nhật
 const DOM = {
   // PWA
   pwaInstallBanner: document.getElementById("pwaInstallBanner"),
@@ -103,7 +104,6 @@ const DOM = {
   // Auth Header & Hero
   openOtpModalBtn: document.getElementById("openOtpModalBtn"),
   heroOtpBtn: document.getElementById("heroOtpBtn"),
-  guestTrialBtn: document.getElementById("guestTrialBtn"),
   userProfile: document.getElementById("userProfile"),
   userAvatar: document.getElementById("userAvatar"),
   userName: document.getElementById("userName"),
@@ -126,7 +126,6 @@ const DOM = {
   countdownText: document.getElementById("countdownText"),
   countdownSec: document.getElementById("countdownSec"),
   resendOtpBtn: document.getElementById("resendOtpBtn"),
-  quickGuestFromModalBtn: document.getElementById("quickGuestFromModalBtn"),
 
   // Email Config Modal
   openEmailConfigBtn: document.getElementById("openEmailConfigBtn"),
@@ -314,30 +313,29 @@ function closeOtpModal() {
 }
 
 /**
- * Gửi email chứa mã OTP thực sự tới địa chỉ người dùng
+ * Gửi email chứa mã OTP thực sự tới địa chỉ Gmail của người dùng qua EmailJS
  */
 async function sendRealEmailOtp(email, otpCode) {
   const cfg = getActiveEmailJsConfig();
 
-  // Kiểm tra nếu có EmailJS SDK và có public key hợp lệ
-  if (window.emailjs && cfg.publicKey && !cfg.publicKey.includes("YOUR_PUBLIC_KEY")) {
-    try {
-      window.emailjs.init({ publicKey: cfg.publicKey });
-      await window.emailjs.send(cfg.serviceId, cfg.templateId, {
-        to_email: email,
-        email: email,
-        otp_code: otpCode,
-        app_name: "ExpenseFlow Pro"
-      });
-      console.log(`[Email Service] Đã gửi mã OTP thực sự tới: ${email}`);
-      return true;
-    } catch (err) {
-      console.warn("[EmailJS] Lỗi gửi email qua EmailJS SDK:", err);
-    }
+  if (!window.emailjs) {
+    throw new Error("Thư viện EmailJS chưa sẵn sàng trên trình duyệt.");
   }
 
-  // Dự phòng: Gửi qua Webhook / Relay Endpoint nếu có
-  return false;
+  if (!cfg.publicKey || cfg.publicKey.includes("YOUR_PUBLIC_KEY") || !cfg.serviceId || !cfg.templateId) {
+    return false;
+  }
+
+  window.emailjs.init({ publicKey: cfg.publicKey });
+  const response = await window.emailjs.send(cfg.serviceId, cfg.templateId, {
+    to_email: email,
+    email: email,
+    otp_code: otpCode,
+    app_name: "ExpenseFlow Pro"
+  });
+
+  console.log(`[Email Service] Đã gửi mã OTP thực sự tới ${email}:`, response);
+  return true;
 }
 
 async function handleSendOtp(e) {
@@ -347,6 +345,21 @@ async function handleSendOtp(e) {
   if (!email || !validateEmail(email)) {
     showToast("Vui lòng nhập địa chỉ email hợp lệ (ví dụ: ten@gmail.com)!", "warning");
     DOM.gmailInput.focus();
+    return;
+  }
+
+  const cfg = getActiveEmailJsConfig();
+  const isConfigured = Boolean(
+    cfg.publicKey && 
+    !cfg.publicKey.includes("YOUR_PUBLIC_KEY") && 
+    cfg.serviceId && 
+    cfg.templateId
+  );
+
+  // Nếu chưa cấu hình EmailJS: Thông báo rõ ràng và mở Modal cài đặt ngay
+  if (!isConfigured) {
+    showToast("⚠️ Bạn cần cấu hình Cổng gửi Email (EmailJS) để hệ thống gửi thư vào hộp thư Gmail của bạn!", "warning", 8000);
+    DOM.emailConfigModal.classList.remove("hidden");
     return;
   }
 
@@ -362,28 +375,35 @@ async function handleSendOtp(e) {
   DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Đang gửi mã vào Gmail...</span>`;
 
   try {
-    // Kích hoạt gửi email thực sự
-    await sendRealEmailOtp(email, randomOtp);
+    const isSent = await sendRealEmailOtp(email, randomOtp);
+
+    if (isSent) {
+      // Chuyển sang bước 2: Nhập OTP
+      DOM.otpStepEmail.classList.add("hidden");
+      DOM.otpStepVerify.classList.remove("hidden");
+      DOM.targetEmailDisplay.textContent = email;
+
+      // Reset các ô OTP và focus ô đầu tiên
+      DOM.otpBoxes.forEach(b => b.value = "");
+      DOM.otpBoxes[0].focus();
+
+      // Thông báo thành công: Người dùng mở Gmail để lấy mã
+      showToast(`✅ Đã gửi mã OTP thành công tới ${email}! Vui lòng mở Gmail để lấy mã.`, "success", 8000);
+
+      // Bắt đầu đếm ngược 60s
+      startOtpCountdown(60);
+    } else {
+      showToast("❌ Chưa thể gửi email. Vui lòng kiểm tra lại cấu hình EmailJS!", "error", 8000);
+      DOM.emailConfigModal.classList.remove("hidden");
+    }
   } catch (error) {
     console.error("Lỗi khi gửi email:", error);
+    const errText = error.text || error.message || "Lỗi không xác định";
+    showToast(`❌ Không thể gửi email: ${errText}. Vui lòng kiểm tra lại cấu hình EmailJS!`, "error", 9000);
+    DOM.emailConfigModal.classList.remove("hidden");
   } finally {
     DOM.sendOtpBtn.disabled = false;
     DOM.sendOtpBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>Gửi mã OTP về Gmail</span>`;
-
-    // Chuyển sang bước 2: Nhập OTP
-    DOM.otpStepEmail.classList.add("hidden");
-    DOM.otpStepVerify.classList.remove("hidden");
-    DOM.targetEmailDisplay.textContent = email;
-
-    // Reset các ô OTP và focus ô đầu tiên
-    DOM.otpBoxes.forEach(b => b.value = "");
-    DOM.otpBoxes[0].focus();
-
-    // Thông báo bảo mật: Tuyệt đối không hiển thị mã trên màn hình
-    showToast(`✅ Đã gửi mã OTP đến ${email}! Vui lòng mở Gmail để kiểm tra.`, "success", 6000);
-
-    // Bắt đầu đếm ngược 60s
-    startOtpCountdown(60);
   }
 }
 
@@ -488,19 +508,8 @@ function handleVerifyOtp() {
   loginUserSuccess(session, true);
 }
 
-function handleGuestLogin() {
-  const guestSession = {
-    email: "guest@expenseflow.local",
-    displayName: "Khách Trải Nghiệm",
-    avatar: `https://ui-avatars.com/api/?name=Khach&background=64748b&color=fff`,
-    loginAt: new Date().toISOString(),
-    isGuest: true
-  };
+// Đã xóa hàm handleGuestLogin theo yêu cầu người dùng
 
-  localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(guestSession));
-  closeOtpModal();
-  loginUserSuccess(guestSession, true);
-}
 
 function loginUserSuccess(session, isNewLogin = false) {
   currentUser = session;
@@ -1070,8 +1079,6 @@ function setupEventListeners() {
   // Auth Triggers
   if (DOM.openOtpModalBtn) DOM.openOtpModalBtn.addEventListener("click", openOtpModal);
   if (DOM.heroOtpBtn) DOM.heroOtpBtn.addEventListener("click", openOtpModal);
-  if (DOM.guestTrialBtn) DOM.guestTrialBtn.addEventListener("click", handleGuestLogin);
-  if (DOM.quickGuestFromModalBtn) DOM.quickGuestFromModalBtn.addEventListener("click", handleGuestLogin);
   if (DOM.logoutBtn) DOM.logoutBtn.addEventListener("click", handleLogout);
 
   // OTP Modal Triggers

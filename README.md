@@ -12,21 +12,60 @@
 
 ---
 
-> **ExpenseFlow Pro** là ứng dụng Web App (PWA) hiện đại giúp bạn quản lý thu chi cá nhân hằng ngày một cách nhanh chóng, riêng tư và bảo mật. Ứng dụng tích hợp cơ chế **Đăng nhập bằng mã OTP Gmail 6 số** và hoàn toàn độc lập, không phụ thuộc Firebase Cloud.
+> **ExpenseFlow Pro** là ứng dụng Web App (PWA) hiện đại giúp bạn quản lý thu chi cá nhân hằng ngày một cách nhanh chóng, riêng tư và bảo mật tuyệt đối. Ứng dụng xác thực độc quyền bằng **Mã OTP gửi trực tiếp vào hộp thư Gmail** của bạn, không có mật khẩu hay đăng nhập tắt.
+
+---
+
+## ✉️ HƯỚNG DẪN KÍCH HOẠT GỬI MÃ OTP VỀ GMAIL (EMAILJS MIỄN PHÍ)
+
+Để trình duyệt web có thể gửi email thực sự vào hòm thư Gmail của bạn (hoặc bất kỳ ai), ứng dụng sử dụng dịch vụ **EmailJS** hoàn toàn miễn phí. Bạn chỉ cần làm theo 3 bước sau (chỉ mất 1–2 phút):
+
+### Bước 1: Tạo tài khoản EmailJS miễn phí
+1. Truy cập [https://www.emailjs.com/](https://www.emailjs.com/) và bấm **Sign Up Free** (chọn Đăng nhập nhanh bằng tài khoản Google).
+2. Sau khi vào màn hình chính, vào mục **Account** ➜ Sao chép **Public Key** của bạn.
+
+### Bước 2: Kết nối tài khoản Gmail của bạn
+1. Ở menu bên trái, vào **Email Services** ➜ Bấm **Add New Service**.
+2. Chọn **Gmail** ➜ Bấm **Connect Account** để cấp quyền gửi mail từ Gmail của bạn ➜ Bấm **Create Service**.
+3. Sao chép mã **Service ID** (ví dụ: `service_xxxxxxx`).
+
+### Bước 3: Tạo mẫu Email gửi mã OTP
+1. Ở menu bên trái, vào **Email Templates** ➜ Bấm **Create New Template**.
+2. Đặt nội dung mẫu email như sau:
+   - **Subject:** `[ExpenseFlow] Mã xác thực OTP của bạn là: {{otp_code}}`
+   - **Content:**
+     ```text
+     Chào bạn,
+
+     Mã OTP đăng nhập vào ứng dụng ExpenseFlow của bạn là: {{otp_code}}
+     Mã này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã cho bất kỳ ai.
+     ```
+   - Tại mục **Settings** của Template, đảm bảo ô **To Email** là: `{{to_email}}`.
+3. Bấm **Save** ở góc trên bên phải ➜ Sao chép mã **Template ID** (ví dụ: `template_xxxxxxx`).
+
+### Bước 4: Nhập vào ứng dụng ExpenseFlow
+1. Mở trang web: [https://phong09829.github.io/Daily_Expense_Tracker/](https://phong09829.github.io/Daily_Expense_Tracker/)
+2. Bấm vào nút **"Cài đặt cổng gửi Email (EmailJS)"** trong cửa sổ đăng nhập.
+3. Điền 3 thông số:
+   - **Public Key**
+   - **Service ID**
+   - **Template ID**
+4. Bấm **Lưu cấu hình**.
+
+🎉 **XONG!** Từ lúc này, mỗi khi bạn nhập bất kỳ Gmail nào và bấm **"Gửi mã OTP về Gmail"**, hệ thống sẽ thực sự gửi email chứa mã 6 số vào hộp thư Gmail của bạn!
 
 ---
 
 ## ✨ Điểm nổi bật & Tính năng chính
 
-- ✉️ **Đăng nhập bằng mã OTP Gmail (Không cần mật khẩu):**
-  - Chỉ cần nhập địa chỉ Gmail để nhận mã OTP 6 số xác thực tức thì.
-  - Hỗ trợ dán (paste) và tự động focus 6 ô mã OTP cực kỳ mượt mà.
-  - Tự động duy trì phiên đăng nhập (Persistent Session), mở lại app không cần đăng nhập lại.
+- ✉️ **Bảo mật tuyệt đối qua OTP Gmail:**
+  - Không hiển thị mã OTP trên màn hình (đảm bảo riêng tư).
+  - Không có tính năng đăng nhập nhanh hay tạo mã tức thì.
+  - Mã xác thực gửi bí mật về hòm thư Gmail, mở Gmail ra xem và nhập vào để đăng nhập.
 - 🛡️ **Cô lập dữ liệu theo từng Gmail (Multi-User Isolation):**
   - Mỗi tài khoản Gmail sở hữu cơ sở dữ liệu thu chi độc lập hoàn toàn.
   - Người dùng này không thể nhìn thấy dữ liệu của người dùng khác.
-  - Hỗ trợ chuyển đổi tài khoản hoặc đăng xuất an toàn chỉ với 1 chạm.
-  - Có chế độ **Dùng thử Khách (Guest)** nếu không muốn nhập Gmail.
+  - Tự động duy trì phiên đăng nhập sau khi xác thực thành công.
 - 📲 **Cài đặt như Native App (PWA Standalone):**
   - Cài đặt trực tiếp về màn hình chính trên **Android**, **iPhone/iPad (iOS Safari)** và **Máy tính (Chrome/Edge)**.
   - Hoạt động toàn màn hình không có thanh URL trình duyệt, mượt mà như app tải từ App Store.
@@ -37,28 +76,6 @@
   - Bộ lọc linh hoạt: Theo tháng, theo loại (Thu/Chi), theo danh mục, tìm kiếm theo từ khóa.
 - 📑 **Xuất dữ liệu Excel / CSV chuẩn Tiếng Việt:**
   - Hỗ trợ tải dữ liệu giao dịch về máy tính định dạng CSV chuẩn UTF-8 (hiển thị Tiếng Việt 100% trên Excel).
-
----
-
-## 🛠️ HƯỚNG DẪN BẬT LINK APP VÀ GẮN VÀO MỤC "ABOUT" TRÊN GITHUB
-
-### 1. Bật GitHub Pages (Nếu trang báo 404):
-1. Vào mục cài đặt Pages của repo: 👉 **[https://github.com/phong09829/Daily_Expense_Tracker/settings/pages](https://github.com/phong09829/Daily_Expense_Tracker/settings/pages)**
-2. Tại mục **Build and deployment**:
-   - **Source:** Chọn **`Deploy from a branch`**
-   - **Branch:** Chọn **`gh-pages`** (hoặc `main`) ➜ Thư mục chọn **`/(root)`**
-   - Bấm **Save**.
-3. Sau khoảng 30 giây, GitHub sẽ thông báo:  
-   🎉 **Your site is live at `https://phong09829.github.io/Daily_Expense_Tracker/`**
-
----
-
-### 2. Gắn link App vào mục "About" ở góc phải trang GitHub:
-1. Vào trang chủ repository: 👉 **[https://github.com/phong09829/Daily_Expense_Tracker](https://github.com/phong09829/Daily_Expense_Tracker)**
-2. Nhìn sang **cột bên phải**, tại mục **About**, bấm vào biểu tượng **bánh răng ⚙️**.
-3. Tại ô **Description**, điền: `📱 ExpenseFlow Pro - Web App PWA Quản lý Chi tiêu Cá nhân (Xác thực OTP Gmail)`
-4. Tại ô **Website**, điền: `https://phong09829.github.io/Daily_Expense_Tracker/` (hoặc tích chọn *Use your GitHub Pages website*).
-5. Bấm **Save changes**.
 
 ---
 
@@ -73,22 +90,3 @@
 - Bấm vào biểu tượng nút **Chia sẻ** (icon ô vuông có mũi tên trỏ lên `⎋`) ở thanh điều hướng dưới cùng.
 - Cuộn xuống chọn **"Thêm vào MH chính"** (**Add to Home Screen** `⊞`).
 - Bấm **Thêm** ở góc trên bên phải.
-
----
-
-## 📂 Cấu trúc mã nguồn
-
-```text
-Daily_Expense_Tracker/
-├── index.html                 # Giao diện chính Mobile-First + Modal OTP Gmail
-├── style.css                  # CSS tối ưu trải nghiệm chạm cảm ứng, safe-area
-├── app.js                     # Toàn bộ logic xác thực OTP Gmail, CRUD & Chart.js
-├── manifest.json              # Cấu hình PWA (Icon, Name, Display Standalone)
-├── sw.js                      # Service Worker quản lý offline cache
-├── vercel.json                # Cấu hình xuất bản Vercel
-├── icons/                     # Bộ biểu tượng ứng dụng PWA
-│   ├── icon-192.png           # Icon 192x192 cho Mobile
-│   ├── icon-512.png           # Icon 512x512 cho Splash Screen
-│   └── favicon.png            # Favicon trình duyệt
-└── README.md                  # Hướng dẫn chi tiết
-```
