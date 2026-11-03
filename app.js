@@ -411,35 +411,122 @@ function handleEmailSubmit(emailInput, scope) {
 }
 
 /**
- * Cài đặt xử lý gõ 6 ô PIN (nhảy ô, xóa lùi, dán clipboard, tự xác nhận)
+ * Cài đặt xử lý gõ 6 ô PIN (chống nhảy số, tự động chuyển ô mượt mà, hỗ trợ mobile & desktop)
  */
 function setupPinInputHandlers() {
   const attachHandlers = (boxes, verifyFn) => {
     boxes.forEach((box, index) => {
-      // Chỉ cho phép nhập chữ số
-      box.addEventListener("input", (e) => {
-        const val = e.target.value.replace(/\D/g, "");
-        e.target.value = val;
+      // 1. Tự động chọn (bôi đen) nội dung khi click hoặc focus để thay đổi số không bị kẹt hay nhảy số
+      box.addEventListener("focus", () => {
+        box.select();
+      });
+      box.addEventListener("click", () => {
+        box.select();
+      });
 
-        if (val && index < boxes.length - 1) {
-          boxes[index + 1].focus();
+      // 2. Xử lý sự kiện nhập số (input)
+      box.addEventListener("input", (e) => {
+        const raw = box.value.replace(/\D/g, "");
+
+        if (!raw) {
+          box.value = "";
+          return;
         }
 
-        // Tự động kiểm tra khi đủ 6 chữ số
+        if (raw.length === 1) {
+          box.value = raw;
+          // Chuyển sang ô kế tiếp mượt mà
+          if (index < boxes.length - 1) {
+            boxes[index + 1].focus();
+            boxes[index + 1].select();
+          }
+        } else if (raw.length === 2) {
+          // Trường hợp gõ đè lên số có sẵn: lấy chữ số mới nhất vừa nhập
+          const newDigit = raw.slice(-1);
+          box.value = newDigit;
+          if (index < boxes.length - 1) {
+            boxes[index + 1].focus();
+            boxes[index + 1].select();
+          }
+        } else {
+          // Trường hợp gõ nhanh hoặc autofill nhiều số cùng lúc: phân bổ lần lượt vào các ô
+          const startIdx = (raw.length >= 6 && index > 0) ? 0 : index;
+          const chars = raw.slice(0, 6).split("");
+          chars.forEach((c, i) => {
+            if (startIdx + i < boxes.length) {
+              boxes[startIdx + i].value = c;
+            }
+          });
+          const nextIndex = Math.min(startIdx + chars.length, boxes.length - 1);
+          boxes[nextIndex].focus();
+          boxes[nextIndex].select();
+        }
+
+        // Tự động kiểm tra khi đủ 6 chữ số (với timeout ngắn để UI kịp vẽ số cuối cùng)
         const fullCode = Array.from(boxes).map(b => b.value).join("");
         if (fullCode.length === 6) {
-          verifyFn();
+          setTimeout(() => {
+            const currentFull = Array.from(boxes).map(b => b.value).join("");
+            if (currentFull.length === 6) {
+              verifyFn();
+            }
+          }, 80);
         }
       });
 
-      // Xử lý phím Backspace để lùi ô
+      // 3. Xử lý phím điều hướng & Backspace (Desktop & Android/iOS)
       box.addEventListener("keydown", (e) => {
-        if (e.key === "Backspace" && !box.value && index > 0) {
+        // Backspace
+        if (e.key === "Backspace" || e.keyCode === 8) {
+          if (box.value) {
+            box.value = "";
+            e.preventDefault();
+          } else if (index > 0) {
+            boxes[index - 1].focus();
+            boxes[index - 1].value = "";
+            e.preventDefault();
+          }
+          return;
+        }
+
+        // Mũi tên trái / phải
+        if (e.key === "ArrowLeft" && index > 0) {
           boxes[index - 1].focus();
+          boxes[index - 1].select();
+          e.preventDefault();
+          return;
+        }
+        if (e.key === "ArrowRight" && index < boxes.length - 1) {
+          boxes[index + 1].focus();
+          boxes[index + 1].select();
+          e.preventDefault();
+          return;
+        }
+
+        // Phím Delete
+        if (e.key === "Delete" || e.keyCode === 46) {
+          box.value = "";
+          e.preventDefault();
+          return;
+        }
+
+        // Nếu bấm phím số khi ô đang có giá trị: bôi đen để thay thế ngay lập tức
+        if (/^[0-9]$/.test(e.key)) {
+          box.select();
         }
       });
 
-      // Xử lý dán (Paste) mã 6 số từ clipboard
+      // 4. Hỗ trợ Backspace trên bàn phím ảo Android (khi keydown không bắt được Backspace)
+      box.addEventListener("beforeinput", (e) => {
+        if (e.inputType === "deleteContentBackward") {
+          if (!box.value && index > 0) {
+            boxes[index - 1].focus();
+            boxes[index - 1].value = "";
+          }
+        }
+      });
+
+      // 5. Xử lý dán (Paste) mã từ clipboard
       box.addEventListener("paste", (e) => {
         e.preventDefault();
         const pasteData = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "").slice(0, 6);
@@ -449,8 +536,9 @@ function setupPinInputHandlers() {
           });
           const nextIndex = Math.min(pasteData.length, boxes.length - 1);
           boxes[nextIndex].focus();
+          boxes[nextIndex].select();
           if (pasteData.length === 6) {
-            verifyFn();
+            setTimeout(verifyFn, 80);
           }
         }
       });
