@@ -50,6 +50,32 @@
 - 📑 **Xuất dữ liệu Excel / CSV chuẩn Tiếng Việt:**
   - Xuất toàn bộ dữ liệu giao dịch ra file CSV chuẩn UTF-8 có BOM (mở trực tiếp bằng Microsoft Excel hiển thị Tiếng Việt chuẩn 100% không bị lỗi font).
 
+- 🗄️ **Cơ sở dữ liệu SQLite trong thư mục dự án (`database/`):**
+  - Lưu trữ trực tiếp danh sách Gmail và Mã PIN 6 số vào file `database/expenseflow.db`.
+  - Có file sao lưu trực quan `database/accounts_backup.json` (mở xem trực tiếp bằng Notepad).
+  - Có công cụ quản trị CLI `python database/db_manager.py` và máy chủ cục bộ `python server.py`.
+
+---
+
+## 🗄️ Quản lý Cơ sở Dữ liệu Tài khoản & Mã PIN
+
+Dự án tích hợp sẵn cơ sở dữ liệu SQLite trong thư mục `database/`:
+
+1. **Xem tài khoản & Mã PIN nhanh bằng Notepad:**
+   - Mở file `database/accounts_backup.json` để xem toàn bộ danh sách tài khoản, mã PIN và ngày tạo.
+
+2. **Quản lý bằng công cụ dòng lệnh (CLI):**
+   ```bash
+   python database/db_manager.py
+   ```
+   Cho phép xem danh sách, thêm tài khoản mới, đổi mã PIN, xóa tài khoản bằng menu tiếng Việt trực quan.
+
+3. **Chạy ứng dụng Web kết nối Database SQLite trực tiếp:**
+   ```bash
+   python server.py
+   ```
+   Mở trình duyệt tại `http://localhost:8000` để sử dụng ứng dụng với dữ liệu lưu trực tiếp vào file database trên máy tính.
+
 ---
 
 ## 📲 Hướng dẫn Cài đặt App về Màn hình chính Điện thoại

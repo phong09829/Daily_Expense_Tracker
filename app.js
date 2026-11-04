@@ -103,7 +103,6 @@ const DOM = {
   heroTogglePinVisibilityBtn: document.getElementById("heroTogglePinVisibilityBtn"),
   heroPinEyeIcon: document.getElementById("heroPinEyeIcon"),
   heroPinEyeText: document.getElementById("heroPinEyeText"),
-  heroResetPinBtn: document.getElementById("heroResetPinBtn"),
   heroVerifyPinBtn: document.getElementById("heroVerifyPinBtn"),
   heroVerifyPinBtnText: document.getElementById("heroVerifyPinBtnText"),
 
@@ -124,7 +123,6 @@ const DOM = {
   modalTogglePinVisibilityBtn: document.getElementById("modalTogglePinVisibilityBtn"),
   modalPinEyeIcon: document.getElementById("modalPinEyeIcon"),
   modalPinEyeText: document.getElementById("modalPinEyeText"),
-  modalResetPinBtn: document.getElementById("modalResetPinBtn"),
   modalVerifyPinBtn: document.getElementById("modalVerifyPinBtn"),
   modalVerifyPinBtnText: document.getElementById("modalVerifyPinBtnText"),
 
@@ -204,6 +202,9 @@ const DOM = {
    4. KHỞI CHẠY ỨNG DỤNG
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
+  // 0. Kiểm tra kết nối với Database SQLite cục bộ (nếu đang chạy server.py)
+  checkBackendConnection();
+
   // 1. Đăng ký Service Worker (PWA)
   registerServiceWorker();
 
@@ -270,8 +271,25 @@ async function triggerPwaInstall() {
 }
 
 /* ==========================================================================
-   5. XÁC THỰC BẢO MẬT BẰNG MÃ PIN 6 SỐ RIÊNG BIỆT CHO TỪNG GMAIL
+   5. XÁC THỰC BẢO MẬT BẰNG MÃ PIN 6 SỐ RIÊNG BIỆT CHO TỪNG GMAIL & DATABASE
    ========================================================================== */
+let isBackendAvailable = false;
+
+async function checkBackendConnection() {
+  try {
+    const res = await fetch("/api/status", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === "online") {
+        isBackendAvailable = true;
+        console.log("🔗 Đã kết nối với Database SQLite cục bộ (expenseflow.db)!");
+      }
+    }
+  } catch (e) {
+    isBackendAvailable = false;
+  }
+}
+
 function getCleanEmail(email) {
   return (email || "").trim().toLowerCase();
 }
@@ -294,11 +312,42 @@ async function hashPin(pin) {
 async function saveUserPin(email, pin) {
   const hashed = await hashPin(pin);
   localStorage.setItem(getPinStorageKey(email), hashed);
+
+  // Nếu máy chủ Database Python đang chạy trong thư mục này, đồng bộ trực tiếp vào database/expenseflow.db
+  if (isBackendAvailable) {
+    try {
+      await fetch("/api/auth/set-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: getCleanEmail(email), pin })
+      });
+    } catch (e) {
+      console.warn("Lưu lên SQLite Backend thất bại:", e);
+    }
+  }
 }
 
 async function verifyUserPin(email, pin) {
   const savedHash = localStorage.getItem(getPinStorageKey(email));
-  if (!savedHash) return false;
+  if (!savedHash) {
+    // Nếu chưa có trong localStorage nhưng có backend, thử xác thực qua SQLite Database
+    if (isBackendAvailable) {
+      try {
+        const res = await fetch("/api/auth/verify-pin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: getCleanEmail(email), pin })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          const hashed = await hashPin(pin);
+          localStorage.setItem(getPinStorageKey(email), hashed);
+          return true;
+        }
+      } catch (e) {}
+    }
+    return false;
+  }
   const currentHash = await hashPin(pin);
   return currentHash === savedHash;
 }
@@ -629,33 +678,6 @@ function setPinVisibility(scope, isVisible) {
 }
 
 /**
- * Đặt lại (Reset) Mã PIN cho tài khoản hiện tại
- */
-function handleResetPin(scope) {
-  const email = pendingAuth.email;
-  if (!email) {
-    showToast("Vui lòng nhập email trước!", "warning");
-    return;
-  }
-
-  localStorage.removeItem(getPinStorageKey(email));
-  pendingAuth.isNewAccount = true;
-  clearPin(scope);
-
-  if (scope === "hero") {
-    DOM.heroPinTitle.textContent = "Thiết lập Mã PIN mới";
-    DOM.heroPinSubtitle.innerHTML = `Đã reset: Bấm <b>Mã PIN 6 số mới</b> để bảo vệ sổ chi tiêu của:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
-    DOM.heroVerifyPinBtnText.textContent = "Tạo Mã PIN & Vào sổ chi tiêu";
-  } else {
-    DOM.modalPinTitle.textContent = "Thiết lập Mã PIN mới";
-    DOM.modalPinSubtitle.innerHTML = `Đã reset: Bấm <b>Mã PIN 6 số mới</b> để bảo vệ sổ chi tiêu của:<br><span class="font-bold text-indigo-600 font-mono">${email}</span>`;
-    DOM.modalVerifyPinBtnText.textContent = "Tạo Mã PIN & Vào sổ chi tiêu";
-  }
-
-  showToast(`🔄 Đã reset mã PIN cho ${email}! Hãy bấm 6 số mới bất kỳ trên bàn phím.`, "info", 5000);
-}
-
-/**
  * Xử lý Bước 2: Xác thực Mã PIN hoặc Lưu Mã PIN mới
  */
 async function handleVerifyPin(scope) {
@@ -857,6 +879,17 @@ function loadUserData(email) {
 function saveUserData(email, list) {
   const key = getUserStorageKey(email);
   localStorage.setItem(key, JSON.stringify(list));
+
+  // Đồng bộ tức thì với SQLite Database trong thư mục khi đang chạy server cục bộ
+  if (isBackendAvailable) {
+    try {
+      fetch("/api/transactions/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: getCleanEmail(email), transactions: list })
+      }).catch(e => console.warn("Lỗi đồng bộ giao dịch lên database:", e));
+    } catch (e) {}
+  }
 }
 
 function generateSampleTransactions() {
@@ -1384,10 +1417,6 @@ function setupEventListeners() {
     });
   }
 
-  if (DOM.heroResetPinBtn) {
-    DOM.heroResetPinBtn.addEventListener("click", () => handleResetPin("hero"));
-  }
-
   if (DOM.heroVerifyPinBtn) {
     DOM.heroVerifyPinBtn.addEventListener("click", () => handleVerifyPin("hero"));
   }
@@ -1412,10 +1441,6 @@ function setupEventListeners() {
     DOM.modalTogglePinVisibilityBtn.addEventListener("click", () => {
       setPinVisibility("modal", !pendingAuth.isModalPinVisible);
     });
-  }
-
-  if (DOM.modalResetPinBtn) {
-    DOM.modalResetPinBtn.addEventListener("click", () => handleResetPin("modal"));
   }
 
   if (DOM.modalVerifyPinBtn) {
