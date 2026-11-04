@@ -824,28 +824,29 @@ function handleLogout() {
    6. CÔ LẬP DỮ LIỆU RIÊNG TƯ THEO TỪNG GMAIL (MULTI-USER ISOLATION)
    ========================================================================== */
 function getUserStorageKey(email) {
-  const safeEmail = encodeURIComponent(email).replace(/[^a-zA-Z0-9_]/g, "_");
+  const cleanEmail = getCleanEmail(email);
+  const safeEmail = encodeURIComponent(cleanEmail).replace(/[^a-zA-Z0-9_]/g, "_");
   return `${STORAGE_KEYS.USER_DATA_PREFIX}${safeEmail}`;
 }
 
 function loadUserData(email) {
-  const key = getUserStorageKey(email);
+  const cleanEmail = getCleanEmail(email);
+  const key = getUserStorageKey(cleanEmail);
   const rawData = localStorage.getItem(key);
   let list = [];
 
-  if (rawData) {
+  if (rawData !== null) {
     try {
       list = JSON.parse(rawData);
+      if (!Array.isArray(list)) list = [];
     } catch (e) {
-      console.error("Lỗi parse data:", e);
+      console.error("Lỗi đọc dữ liệu đã lưu:", e);
       list = [];
     }
-  }
-
-  // Nếu tài khoản mới chưa có dữ liệu: Tự động nạp dữ liệu mẫu ban đầu
-  if (list.length === 0) {
+  } else {
+    // CHỈ tạo dữ liệu mẫu khi tài khoản MỚI TOANH chưa từng khởi tạo (rawData === null)
     list = generateSampleTransactions();
-    saveUserData(email, list);
+    saveUserData(cleanEmail, list);
   }
 
   allTransactions = list;
@@ -978,6 +979,30 @@ function handleSaveTransaction(e) {
 
   // Lưu trữ dữ liệu vào kho riêng của tài khoản Gmail này
   saveUserData(currentUser.email, allTransactions);
+
+  // Đảm bảo bộ lọc tháng tự động chuyển sang tháng của giao dịch này để người dùng THẤY NGAY
+  if (date && date.length >= 7) {
+    currentFilter.month = date.substring(0, 7);
+  }
+  currentFilter.type = "all";
+  currentFilter.category = "all";
+  currentFilter.searchKeyword = "";
+
+  // Reset giao diện các nút lọc loại giao dịch
+  if (DOM.typeFilterBtns) {
+    DOM.typeFilterBtns.forEach(btn => {
+      if (btn.getAttribute("data-type") === "all") {
+        btn.classList.add("bg-white", "text-slate-800", "shadow-xs");
+        btn.classList.remove("text-slate-500");
+      } else {
+        btn.classList.remove("bg-white", "text-slate-800", "shadow-xs");
+        btn.classList.add("text-slate-500");
+      }
+    });
+  }
+  if (DOM.categoryFilter) DOM.categoryFilter.value = "all";
+  if (DOM.searchInput) DOM.searchInput.value = "";
+
   updateMonthFilterOptions();
   applyFiltersAndRender();
   closeTransactionModal();
@@ -1588,116 +1613,101 @@ function getCategoryMeta(type, categoryName) {
 
 
 /**
- * Xử lý nhập số tiền an toàn:
- * - Chống nhảy số & nhân đôi số do bộ nhớ đệm bàn phím ảo (Gboard, Samsung, iOS)
- * - Tự động định dạng hàng nghìn có dấu chấm: 50.000
- * - Giữ nguyên vị trí con trỏ chuột khi đang gõ
- * - Xóa lùi Backspace mượt mà qua các dấu chấm phân cách
+ * Xử lý nhập số tiền chuẩn xác 100% (Loại bỏ triệt để lỗi nhảy số & tự thêm số)
+ * Nguyên tắc:
+ * - Khi đang gõ: Giữ nguyên các chữ số thuần túy (không chèn dấu chấm giữa chừng làm bàn phím ảo bị lặp buffer).
+ * - Dòng bên dưới lập tức hiển thị số tiền có định dạng chuẩn & đọc bằng chữ tiếng Việt.
+ * - Khi rời khỏi ô (blur): Tự động format đẹp mắt (50.000).
+ * - Khi bấm vào ô (focus): Tự động chọn tất cả để gõ số mới thay thế ngay tức thì.
  */
 function setupAmountInputHandler() {
   if (!DOM.amountInput) return;
 
-  // 1. Xử lý Backspace qua dấu chấm phân cách
-  DOM.amountInput.addEventListener("keydown", (e) => {
-    if (e.key === "Backspace") {
-      const input = DOM.amountInput;
-      const start = input.selectionStart;
-      const end = input.selectionEnd;
-
-      // Nếu con trỏ chuột đứng ngay sau dấu chấm '.' và không bôi đen nhiều ký tự
-      if (start === end && start > 0 && input.value[start - 1] === ".") {
-        e.preventDefault();
-        const currentVal = input.value;
-        // Xóa chữ số đứng trước dấu chấm thay vì xóa dấu chấm rồi bị format ngược lại
-        const updatedVal = currentVal.slice(0, start - 2) + currentVal.slice(start - 1);
-        const cleanDigits = updatedVal.replace(/\D/g, "");
-
-        if (!cleanDigits || cleanDigits === "0") {
-          input.value = "";
-          if (DOM.amountWords) DOM.amountWords.textContent = "";
-        } else {
-          const numVal = parseInt(cleanDigits, 10);
-          input.value = formatCurrencyInput(numVal);
-          const newPos = Math.max(0, start - 2);
-          input.setSelectionRange(newPos, newPos);
-          updateAmountWords(numVal);
-        }
-      }
-    }
+  // 1. Khi focus vào ô: Tự động bôi đen toàn bộ để gõ số mới không bị nối đuôi
+  DOM.amountInput.addEventListener("focus", () => {
+    setTimeout(() => {
+      if (DOM.amountInput) DOM.amountInput.select();
+    }, 50);
   });
 
-  // 2. Format trực tiếp theo thời gian thực (Giữ con trỏ chuột & ngăn lặp buffer)
-  DOM.amountInput.addEventListener("input", (e) => {
-    const input = e.target;
-    const rawVal = input.value;
-    const prevCursor = input.selectionEnd || rawVal.length;
+  // 2. Khi đang gõ phím: Lọc số thô, cập nhật dòng chữ hiển thị ngay lập tức
+  DOM.amountInput.addEventListener("input", () => {
+    const rawVal = DOM.amountInput.value.replace(/\D/g, "");
 
-    // Đếm số lượng chữ số nằm trước vị trí con trỏ chuột
-    const digitsBeforeCursor = rawVal.slice(0, prevCursor).replace(/\D/g, "").length;
-
-    // Lọc sạch toàn bộ ký tự không phải chữ số
-    const cleanDigits = rawVal.replace(/\D/g, "");
-
-    if (!cleanDigits) {
-      input.value = "";
+    if (!rawVal) {
+      DOM.amountInput.value = "";
       if (DOM.amountWords) DOM.amountWords.textContent = "";
       return;
     }
 
-    // Giới hạn tối đa 12 chữ số (dưới 1.000 tỷ đồng)
-    const safeDigits = cleanDigits.slice(0, 12);
-    const numVal = parseInt(safeDigits, 10) || 0;
+    // Giới hạn tối đa 12 chữ số để tránh tràn số
+    const safeDigits = rawVal.slice(0, 12);
+    const num = parseInt(safeDigits, 10) || 0;
 
-    if (numVal === 0) {
-      input.value = "";
-      if (DOM.amountWords) DOM.amountWords.textContent = "";
-      return;
+    // Không chèn dấu chấm vào giữa input khi đang gõ để bàn phím ảo Gboard/Samsung không bao giờ bị lặp buffer
+    if (DOM.amountInput.value !== safeDigits) {
+      DOM.amountInput.value = safeDigits;
     }
 
-    // Format tiền theo chuẩn Việt Nam (50.000)
-    const formatted = formatCurrencyInput(numVal);
-
-    // Chỉ cập nhật DOM nếu giá trị chuỗi thật sự thay đổi (tránh reset buffer bàn phím ảo)
-    if (input.value !== formatted) {
-      input.value = formatted;
-
-      // Tính toán lại vị trí con trỏ chuột chuẩn xác
-      let newCursor = 0;
-      let digitsCounted = 0;
-      for (let i = 0; i < formatted.length; i++) {
-        if (/\d/.test(formatted[i])) {
-          digitsCounted++;
-        }
-        if (digitsCounted === digitsBeforeCursor) {
-          newCursor = i + 1;
-          break;
-        }
-      }
-      if (digitsCounted < digitsBeforeCursor) {
-        newCursor = formatted.length;
-      }
-      input.setSelectionRange(newCursor, newCursor);
-    }
-
-    updateAmountWords(numVal);
+    updateAmountWords(num);
   });
+
+  // 3. Khi người dùng rời khỏi ô (blur): Format hiển thị hàng nghìn (50.000)
+  DOM.amountInput.addEventListener("blur", () => {
+    const num = parseCurrencyNumber(DOM.amountInput.value);
+    if (num > 0) {
+      DOM.amountInput.value = formatCurrencyInput(num);
+    } else {
+      DOM.amountInput.value = "";
+      if (DOM.amountWords) DOM.amountWords.textContent = "";
+    }
+  });
+
+  // 4. Các nút bấm cộng số tiền nhanh (+10k, +20k, +50k, +100k, +200k, +500k, Xóa)
+  document.querySelectorAll("[data-add-amount]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const addValue = parseInt(btn.getAttribute("data-add-amount"), 10) || 0;
+      const current = parseCurrencyNumber(DOM.amountInput.value);
+      const total = current + addValue;
+      DOM.amountInput.value = formatCurrencyInput(total);
+      updateAmountWords(total);
+      DOM.amountInput.focus();
+    });
+  });
+
+  const clearBtn = document.getElementById("clearAmountBtn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      DOM.amountInput.value = "";
+      if (DOM.amountWords) DOM.amountWords.textContent = "";
+      DOM.amountInput.focus();
+    });
+  }
 }
 
 function updateAmountWords(amount) {
-  if (!amount || amount < 1000) {
+  if (!DOM.amountWords) return;
+  if (!amount || amount <= 0) {
     DOM.amountWords.textContent = "";
     return;
   }
+
+  const formatted = formatVNMoney(amount);
+  let wordDesc = "";
   if (amount >= 1000000000) {
-    const ty = (amount / 1000000000).toFixed(2);
-    DOM.amountWords.textContent = `~ ${ty} tỷ VNĐ`;
+    const ty = (amount / 1000000000).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    wordDesc = `${ty} tỷ đồng`;
   } else if (amount >= 1000000) {
-    const tr = (amount / 1000000).toFixed(1);
-    DOM.amountWords.textContent = `~ ${tr} triệu VNĐ`;
+    const tr = (amount / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    wordDesc = `${tr} triệu đồng`;
   } else if (amount >= 1000) {
-    const k = (amount / 1000).toFixed(0);
-    DOM.amountWords.textContent = `~ ${k} nghìn VNĐ`;
+    const k = (amount / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 0 });
+    wordDesc = `${k} nghìn đồng`;
+  } else {
+    wordDesc = `${amount} đồng`;
   }
+
+  DOM.amountWords.textContent = `Số tiền: ${formatted} (~ ${wordDesc})`;
 }
 
 function validateEmail(email) {
