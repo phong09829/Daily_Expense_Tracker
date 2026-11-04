@@ -1,6 +1,25 @@
 {
   "_chu_thich": "File sao lưu tự động danh sách tài khoản Gmail và Mã PIN đăng nhập",
-  "thoi_gian_cap_nhat": "2026-11-04 13:21:37",
-  "tong_so_tai_khoan": 0,
-  "danh_sach_tai_khoan": []
+  "thoi_gian_cap_nhat": "2026-11-04 13:48:21",
+  "tong_so_tai_khoan": 2,
+  "danh_sach_tai_khoan": [
+    {
+      "id": 2,
+      "email": "phongtest@gmail.com",
+      "pin_code": "123456",
+      "notes": "Tự động đồng bộ từ Cloud Vault",
+      "created_at": "2026-11-04 13:48:21",
+      "updated_at": "2026-11-04 13:48:21",
+      "total_transactions": 0
+    },
+    {
+      "id": 3,
+      "email": "user1@gmail.com",
+      "pin_code": "112233",
+      "notes": "Tự động đồng bộ từ Cloud Vault",
+      "created_at": "2026-11-04 13:48:21",
+      "updated_at": "2026-11-04 13:48:21",
+      "total_transactions": 0
+    }
+  ]
 }

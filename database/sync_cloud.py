@@ -96,3 +96,4 @@ def sync_from_cloud():
 
 if __name__ == "__main__":
     sync_from_cloud()
+

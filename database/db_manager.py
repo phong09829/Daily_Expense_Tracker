@@ -180,10 +180,11 @@ def interactive_cli():
         print("3. 🔑 Đổi Mã PIN cho Gmail có sẵn")
         print("4. 🗑️  Xóa tài khoản")
         print("5. 🔄 Xuất file JSON (dễ xem bằng Notepad)")
+        print("6. ☁️  Tự động đồng bộ tài khoản từ Cloud Vault (ntfy.sh)")
         print("0. 🚪 Thoát")
         print("-" * 60)
 
-        choice = input("👉 Chọn chức năng (0-5): ").strip()
+        choice = input("👉 Chọn chức năng (0-6): ").strip()
 
         if choice == "1":
             users = list_all_users()
@@ -232,6 +233,13 @@ def interactive_cli():
         elif choice == "5":
             sync_to_json()
             print(f"✅ Đã xuất dữ liệu ra file: {JSON_BACKUP_PATH}")
+
+        elif choice == "6":
+            try:
+                from sync_vault import pull_from_vault
+                pull_from_vault()
+            except Exception as e:
+                print(f"❌ Lỗi đồng bộ Cloud Vault: {e}")
 
         elif choice == "0":
             print("Tạm biệt!")

