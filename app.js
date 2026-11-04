@@ -718,6 +718,9 @@ async function handleVerifyPin(scope) {
   }
 
   // Đúng mã PIN: Đăng nhập thành công!
+  if (isBackendAvailable) {
+    saveUserPin(email, enteredPin).catch(() => {});
+  }
   completeAccountLogin(email, false);
 }
 
